@@ -20,16 +20,19 @@ particularly with fast locking; Phase 2 is to show feasibility of one such desig
 
 ## References
 
-* [1] J. Tierno, A. Rylyakov, and D. Friedman, “A Wide Power Supply Range, Wide Tuning Range, All Static
-CMOS All Digital PLL in 65nm SOI,” IEEE JSSC, vol. 43, no.1, Jan. 2008, pp. 42-51.  uses only static
-CMOS for ADPLL
-* [2] W. Deng et al., “A Fully Synthesizable All-Digital PLL with Interpolative Phase Coupled Oscillator,
+* [1] [J. Tierno, A. Rylyakov, and D. Friedman, “A Wide Power Supply Range, Wide Tuning Range, All Static
+CMOS All Digital PLL in 65nm SOI,” IEEE JSSC, vol. 43, no.1, Jan. 2008, pp. 42-51](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4242320&tag=1)
+  * Uses only static CMOS for ADPLL
+* [2] [W. Deng et al., “A Fully Synthesizable All-Digital PLL with Interpolative Phase Coupled Oscillator,
 Current-Output DAC, and Fine-Resolution Digital Varactor using Gated Edge Injection Technique,” IEEE
-JSSC 2015, vol. 50, no. 1, Jan. 2015, pp. 68-80.  fully P&R
-* [3] R. Staszewski and P. Balsara, “All-Digital PLL with Ultra Fast Settling”, IEEE Trans. Circuits and Systems
-II, vol. 54, no. 2, Feb. 2007.  Gear shifting, <50us
-* [4] T. Anand et al., “A 7 Gb/s Embedded Clock Transceiver for Energy Proportional Links,” IEEE JSSC, vol.
-50, no. 12, Dec. 2015, pp. 3101-3119.  Initial conditions, fast lock <1ns
+JSSC 2015, vol. 50, no. 1, Jan. 2015, pp. 68-80](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6891375)
+  * Fully P&R
+* [3] [R. Staszewski and P. Balsara, “All-Digital PLL with Ultra Fast Settling”, IEEE Trans. Circuits and Systems
+II, vol. 54, no. 2, Feb. 2007](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4100882) 
+  * Gear shifting, <50us
+* [4] [T. Anand et al., “A 7 Gb/s Embedded Clock Transceiver for Energy Proportional Links,” IEEE JSSC, vol.
+50, no. 12, Dec. 2015, pp. 3101-3119](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7265108)
+  * Initial conditions, fast lock <1ns
 * [5] A. Santiccioli et al, “A 66fsRMS Jitter 12.8-to-15.2GHz Fractional-N Bang-Bang PLL with Digital
-Frequency-Error Recovery for Fast Locking”, ISSCC 2020 Dig. Tech. Papers, Feb. 2020, pp. 268-269. 
-auxiliary PD + pulse gen, <18.55us (1GHz hop)
+Frequency-Error Recovery for Fast Locking”, ISSCC 2020 Dig. Tech. Papers, Feb. 2020, pp. 268-269. 
+  * auxiliary PD + pulse gen, <18.55us (1GHz hop)
