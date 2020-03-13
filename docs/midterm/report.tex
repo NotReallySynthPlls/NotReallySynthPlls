@@ -1,0 +1,59 @@
+%% DO NOT CHANGE
+\documentclass{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+%% DO NOT CHANGE
+
+% Run through MikTeX TexWorks once with auto-install missing packages enabled.
+
+\begin{document}
+\title{  Adaptive Clock Generation PLL and Clock Distribution }
+
+\author{
+	Dan Fritchman, \IEEEmembership{Member, IEEE} and Wahid Rahman \IEEEmembership{Member, IEEE}
+	\thanks{Date of publication Mar. 20, 2020.}
+	\thanks{
+		D. Fritchman and W. Rahman are with the Department of Electrical Engineering and Computer Sciences, University of California, Berkeley, Berkeley, CA 94720 USA (e-mail: dan\_fritchman@berkeley.edu; wahid.rahman@berkeley.edu).}
+}
+
+\maketitle
+
+\begin{abstract}
+Adaptive clock generation techniques have emerged in recent generations of high-performance SoCs for mitigation of timing failures due to transient supply voltage droops. Rather than design-in timing margin via either (a) increased supply voltage, (b) improved supply-distribution, or (c) reduced supply noise, adaptive-clock systems instead detect transient supply events and temporarily reduce their clock frequency. Works such as [4], [5], and [6] include a discrete adaptive clock distribution (ACD) circuit, inserted in-line after a typical PLL. Other works such as [1], [2], and [3] instead utilize adaptive PLLs, which directly update their oscillator frequency following supply-droop events. While adaptive clocking has been shown possible for analog PLLs in [3], its cost of implementation is far lower for digital PLLs such as [1] and [2]. Such all-digital PLLs are further desirable for their small area, portability, and streamlined circuit design process. This work compares ACD and PLL-based means of adapting digital clock frequency to transient supply-voltage droops, using [1] and [4] as seminal examples of each. Finally we present the design of an adaptive all-digital PLL with sub-cycle reaction time which avoids many of the trade-offs cited in prior works [4], [5], and [6].
+\end{abstract}
+
+\begin{IEEEkeywords}
+Adaptive clocking, adaptive frequency, power efficiency, supply-droop mitigation, supply-voltage droop.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Summarize problem, state of the art
+
+\section{Background}
+\subsection{Direct modulation of PLL}
+Discuss \cite{hashimoto2018}.
+\subsection{Post-PLL modulation}
+Discuss \cite{wilcox2015}.
+
+\section{Comparison setup}
+Key performance metrics and measurement setup for comparison between \cite{hashimoto2018} and \cite{wilcox2015}.
+
+\section{Comparison}
+Direct comparison of \cite{hashimoto2018} and \cite{wilcox2015}. Clear hypothesis of which design is more viable.
+
+\section{Conclusion}
+In continued work, we will further investigate ...
+
+
+\bibliographystyle{IEEEtran}
+\begingroup
+\raggedright
+\bibliography{references}
+\endgroup
+
+\end{document}
