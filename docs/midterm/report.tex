@@ -24,6 +24,9 @@
 \maketitle
 
 \begin{abstract}
+
+(This is worded more like an intro, probably make it more concise for the abstract.)
+
 Adaptive clock generation techniques have emerged in recent generations of high-performance SoCs for mitigation of timing failures due to transient supply voltage droops. Rather than design-in timing margin via either (a) increased supply voltage, (b) improved supply-distribution, or (c) reduced supply noise, adaptive-clock systems instead detect transient supply events and temporarily reduce their clock frequency. Works such as [4], [5], and [6] include a discrete adaptive clock distribution (ACD) circuit, inserted in-line after a typical PLL. Other works such as [1], [2], and [3] instead utilize adaptive PLLs, which directly update their oscillator frequency following supply-droop events. While adaptive clocking has been shown possible for analog PLLs in [3], its cost of implementation is far lower for digital PLLs such as [1] and [2]. Such all-digital PLLs are further desirable for their small area, portability, and streamlined circuit design process. This work compares ACD and PLL-based means of adapting digital clock frequency to transient supply-voltage droops, using [1] and [4] as seminal examples of each. Finally we present the design of an adaptive all-digital PLL with sub-cycle reaction time which avoids many of the trade-offs cited in prior works [4], [5], and [6].
 \end{abstract}
 
@@ -32,23 +35,64 @@ Adaptive clocking, adaptive frequency, power efficiency, supply-droop mitigation
 \end{IEEEkeywords}
 
 \section{Introduction}
-Summarize problem, state of the art
 
-\section{Background}
-\subsection{Direct modulation of PLL}
-Discuss \cite{hashimoto2018}.
+Adaptive clock generation techniques have emerged in recent generations of high-performance SoCs for mitigation of timing failures due to transient supply voltage droops. Rather than design-in timing margin via either (a) increased supply voltage, (b) improved supply-distribution, or (c) reduced supply noise, adaptive-clock systems instead detect transient supply events and temporarily reduce their clock frequency. Works such as [4], [5], and [6] include a discrete adaptive clock distribution (ACD) circuit, inserted in-line after a typical PLL. Other works such as [1], [2], and [3] instead utilize adaptive PLLs, which directly update their oscillator frequency following supply-droop events. While adaptive clocking has been shown possible for analog PLLs in [3], its cost of implementation is far lower for digital PLLs such as [1] and [2]. Such all-digital PLLs are further desirable for their small area, portability, and streamlined circuit design process. This work compares ACD and PLL-based means of adapting digital clock frequency to transient supply-voltage droops, using [1] and [4] as seminal examples of each. Finally we present the design of an adaptive all-digital PLL with sub-cycle reaction time which avoids many of the trade-offs cited in prior works [4], [5], and [6].
+
+\section{Adaptive Clocking Schemes}
+
+@dan to complete this section
+
+All adaptive clocking schemes include two fundamental components:
+
+* (a) A *power-supply sensor*, which measures and reports transient droops in supply voltage, and
+* (b) A *clock period actuator*, which modulates the system clock period in response to reports from the power-supply sensor
+
+Additional logic or circuitry then manages recovery from these supply-induced slow-downs. 
+
+Adaptive Clock Distribution (ACD) and PLL-based systems differ in their implementation of component (b), the clock-period actuator. ACD-based systems extend their clock period via a discrete ACD circuit, placed in-line between the PLL output clock pclk and the global logic clock gclk, as in Figure X below.
+
+(acd.png)
+
+Adaptive PLL systems, in contrast, directly incorporate supply-droop information into their oscillator frequency, as in Figure Y. 
+
+(pll.png)
+
+(A note on how we're not evaluating or designing the *sensor*, just the *actuator*.)
+
+Power-supply sensors may be asynchronous or clocked. Generally they must operate at frequencies far greater than the maximum expected supply-droop frequency, typically closer to the digital clock frequency. Both voltage-based and time-based sensors have been reported in high-performance adaptive clocking systems. These sensors form a low-resolution supply-measurement ADC, often with non-linear thresholds dictated by logic timing thresholds. Sensor designs include trade-offs between accuracy, speed of response, and digital integrate-ability, i.e. the amount of highly custom and analog circuitry which much be designed and integrated in an otherwise digital system. Designs of either popular class of sensor (voltage-based and time-based) are compatible with both classes of actuator examined here. Design of these sensors is not explored in this work. We assess and design clock-actuators expecting a supply-sensor supporting (some feature list of thresholds, latency, etc.). 
+
+
 \subsection{Post-PLL modulation}
+
+@wahid
 Discuss \cite{wilcox2015}.
 
-\section{Comparison setup}
+\subsection{Direct modulation of PLL}
+
+@wahid
+Discuss \cite{hashimoto2018}.
+
+PLL characteristics that help this:
+
+* Instant frequency change
+* Digitally manageable recovery
+* Knowledge of control versus frequency info, i.e. calibration data 
+* Instantly reconfigurable loop filter
+
+\section{Comparison of ACD and PLL Actuators}
+
+@dan
 Key performance metrics and measurement setup for comparison between \cite{hashimoto2018} and \cite{wilcox2015}.
 
 \section{Comparison}
 Direct comparison of \cite{hashimoto2018} and \cite{wilcox2015}. Clear hypothesis of which design is more viable.
 
 \section{Conclusion}
-In continued work, we will further investigate ...
 
+Our "very clear hypothesis" is that we can make a PLL, that doesn't suck. 
+In continued work, we will further investigate ... doing that.
+
+@dan to complete this section
 
 \bibliographystyle{IEEEtran}
 \begingroup
