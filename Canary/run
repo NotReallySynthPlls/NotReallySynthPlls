@@ -1,0 +1,4 @@
+
+mkdir -p sim && cd sim && vcs +lint=all +v2k ../src/pll.sv -top tb && ./simv
+
+
