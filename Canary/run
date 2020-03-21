@@ -1,4 +1,5 @@
 
-mkdir -p sim && cd sim && vcs +lint=all +v2k ../src/pll.sv -top tb && ./simv
+mkdir -p sim && cd sim &&  \
+  vcs +lint=all +v2k +systemverilogext+sv ../src/pll.sv -top tb && ./simv
 
 
