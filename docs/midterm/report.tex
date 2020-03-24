@@ -137,9 +137,9 @@ The focus of this brief is to compare the design and effectiveness of clock peri
 \label{sec:details}
 The two main works for comparison are the PLL- and ACD-based adaptive clocking schemes in \cite{hashimoto2018} and \cite{wilcox2015} respectively. The operating principles of each are described in this section.
 
-\subsection{PLL-based adaptive clocking}
+\subsection{PLL-Based Adaptive Clocking}
 \label{sec:details_pll}
-The scheme reported in \cite{hashimoto2018} presents a PLL-based adaptive clocking control for three SPARC processor cores in a 20nm CMOS testchip. A sense point placed near one of the SPARC cores transmits the core $V_{DD}$ through low-impedance on-package (off-chip) routing to the on-chip power-supply sensor. This sensor converts $V_{DD}$ droops into a thermometer-coded quantized digital signal, $q[n]$, by use two calibrated delay lines and a 8-bit time-to-digital converter (TDC). 
+While adaptive clocking has been supported by analog PLLs such as \cite{kurd2009next}, its cost of implementation is far lower for digital PLLs. The scheme reported in \cite{hashimoto2018} presents a PLL-based adaptive clocking control for three SPARC processor cores in a 20nm CMOS testchip. A sense point placed near one of the SPARC cores transmits the core $V_{DD}$ through low-impedance on-package (off-chip) routing to the on-chip power-supply sensor. This sensor converts $V_{DD}$ droops into a thermometer-coded quantized digital signal, $q[n]$, by use two calibrated delay lines and a 8-bit time-to-digital converter (TDC). 
 
 A major contribution of \cite{hashimoto2018} is to use the instantaneous value of q[n] to immediately reduce the PLL's oscillator frequency to correct for high-frequency droops and use a filtered version of $q[n]$ to correct for low frequency droops and ultimately re-lock the PLL feedback loop. As shown in Fig.\ \ref{fig:detail_pll} and Fig.\ \ref{fig:detail_pllarch}, $q[n]$ is processed by the frequency control logic to generate two control signals: $\Delta F_{code}$ that can instantaneously respond to changes in $q[n]$ to directly change the digitally-controlled oscillator (DCO) frequency, and $N^{sync}_{code}$ that relies only on a filtered value of $q[n]$ to track low-frequency droops and re-lock the PLL loop at the new frequency by changing the feedback division value. The minimum function and the non-linear filter together effectively construct an all-pass filter when $V_{DD}$ decreases and a low-pass filter when $V_{DD}$ increases. They allow the loop to actuate the clock with minimal latency during a $V_{DD}$ droop event. During droop recovery, they low-pass filter $V_{DD}$ transients and overshoots as the voltage ultimately settles to its nominal value.
 
@@ -161,7 +161,7 @@ As fast response to high-frequency supply droops is an important criterion in \c
 
 The reduction in adaptation latency directly correlates with reported experimental results. Fast response to droops allows for tighter guardbanding and therefore higher $f_{MAX}$. While \cite{hashimoto2018} does not report the exact clock adaptation latency, the work improves $f_{MAX}$ by 7.5\%, from 4.65GHz without adaptive clocking to 5.00GHz with the proposed scheme. This is the largest frequency gain reported in compared works.
 
-\subsection{ACD-based adaptive clocking}
+\subsection{ACD-Based Adaptive Clocking}
 \label{sec:details_acd}
 The scheme reported in \cite{wilcox2015} presents a ACD-based adaptive clocking control for AMD's Steamroller CPU in 28nm CMOS. The power supply sensor consists of a DLL-based droop detector acting as a delay line connected to the SoC core $V_{DD}$: as $V_{DD}$ changes, the DLL phases change with respect to a regulated PLL's output clock. A programmable threshold selects one of four DLL phases to compare against the reference PLL phase to signal a 1-bit droop activity.
 
@@ -182,34 +182,38 @@ This scheme reports to target fast initial droops of 100MHz and slower 1-5MHz se
 
 \subsection{The Role of Power-Supply Sensors}
 
-Supply sensors may be asynchronous or clocked. Generally they must operate at frequencies far greater than the maximum expected supply-droop frequency, typically closer to the digital clock frequency. Both voltage-based and time-based sensors have been reported in high-performance adaptive clocking systems. These sensors form a low-resolution supply-measurement ADC, often with non-linear thresholds dictated by logic timing thresholds. Sensor designs include trade-offs between accuracy, speed of response, and digital integrate-ability, i.e. the amount of highly custom and analog circuitry which much be designed and integrated in an otherwise digital system. 
+The latency and accuracy of power-supply sensing is a vital facet of adaptive clock generation. Sensors must generally operate at frequencies far greater than the maximum expected supply-droop frequency, typically closer to the digital clock frequency. Both voltage-based and time-based sensors have been reported in high-performance adaptive clocking systems. These sensors form a low-resolution supply-measurement ADC, often with non-linear thresholds dictated by logic timing thresholds. Sensor designs include trade-offs between accuracy, speed of response, and digital integrate-ability, i.e. the amount of highly custom and analog circuitry which much be designed and integrated in an otherwise digital system. 
 
-This work compares ACD and PLL-based *actuators*, independent of power-supply sensor. Designs of either popular class of sensor (voltage and time-based) are compatible with both classes of actuator examined here. The comparisons in this work proceed under the realizations that ACD and PLL systems have no inherent advantages with regards to:
+A distinct class of adaptive-clock systems omit a power-supply sensor altogether, and instead use system-level behavior information to provide \texit{feedforward droop notification}. A system-management hardware block notifies each clock-actuator shortly before major system actions which are expected to cause droops, e.g. the enabling of a large or power-hungry sub-component. 
 
-* (a) Latency in response to similar power-supply sensors, or
-* (b) Compatibility with similar diversity of power-supply sensors, or
-* (c) Requirements for the performance of their power-supply sensors
+This work compares ACD and PLL-based \textit{actuators}, independent of power-supply sensor. Designs of either popular class of sensor (voltage and time-based) are compatible with both classes of actuator examined here. The comparisons in this work proceed under the realizations that ACD and PLL systems have no inherent advantages with regards to:
 
-In short, any sensor which works for an ACP should work equally well for an adaptive PLL. For sake of our comparisons, we assume a supply-sensor with (FIXME: some feature list of thresholds, latency, etc.). 
+\begin{enumerate}[(a)]
+\item Latency in response to similar sensors, or
+\item Compatibility with similar diversity of sensors, or
+\item Requirements for the performance of their sensors
+\end{enumerate}
+
+In short, any sensor which works for an ACP should work equally well for an adaptive PLL. For sake of our comparisons, we assume a single-threshold supply-sensor with between one and a few cycles of latency. Such performance would be typical of analog comparator-based sensors or of feedforward droop notification. 
 
 \subsection{Comparison Criteria}
 
-The most obvious downside to the ACD-based systems is the inclusion of the ACD circuit itself. While low-cost variants using simple frequency-dividers have been proposed, these systems generally lack the frequency resolution to prevent significant performance degradations from minor supply disturbances. For example down-shifting from frequency *f* to frequency *f/2* upon a supply-droop event will, in general, halve the digital logic performance until the event can be confidently deemed complete. Upon completion, a single step directly back to *f* is the only available frequency-recovery trajectory. 
+The most obvious downside to the ACD-based systems is the inclusion of the ACD circuit itself. While low-cost variants using simple frequency-dividers have been proposed, these systems generally lack the frequency resolution to prevent significant performance degradations from minor supply disturbances. Higher resolution ACD systems such as \cite{wilcox2015} instead use a combination of delay-locked loops (DLLs) with phase rotation and/or interpolation to extend the clock period. These systems can, in principle, have period resolution of a single delay-stage delay (or less). Their primary cost is power. The DLL, phase rotation, and its accompanying control logic all operate at the logic-clock frequency. Worse, these circuits must be active at essentially all times; disabling them greatly expands the latency of the period-actuator. 
 
-Higher resolution ACD systems such as [@wilcox2015] instead use a combination of delay-locked loops (DLLs) with phase rotation and/or interpolation to extend the clock period. These systems can, in principle, have period resolution of a single delay-stage delay (or less). Their primary cost is power. The DLL, phase rotation, and its accompanying control logic all operate at the logic-clock frequency. Worse, these circuits must be active at essentially all times; disabling them greatly expands the latency of the period-actuator. 
-
-Adaptive PLL systems offer a means to remove the high-power ACD circuit altogether, by feeding their supply-sensor data near-directly into their oscillator frequency-control. This can result in a material savings of power, on the order of magnitude of the PLL itself. Digital PLLs with digital controls and ring oscillators have essentially unlimited bandwidth from frequency-control-code changes to their output frequency. Response-times to supply droops of only a few clock cycles have been reported, such as in [@hashimoto2018]. (We believe there is potential to reduce this latency to less than one clock cycle.) A digital PLL's highly configurable control loop also provides ample mechanisms to temporarily modify its loop dynamics, and to apply frequency-recovery schemes of near-arbitrary shape and duration. 
+Adaptive PLL systems offer a means to remove the high-power ACD circuit altogether, by feeding their supply-sensor data near-directly into their oscillator frequency-control. These power savings may often be on the order of magnitude of the PLL itself. Digital PLLs employing ring oscillators have essentially unlimited bandwidth from frequency-control-code changes to their output frequency, allowing for near-instantaneous frequency changes upon droop detection. PLLs such as \cite{hashimoto2018} have reported actuator response times of less than a single oscillator clock cycle. A digital PLL's highly configurable control loop also provides ample mechanisms to temporarily modify its loop dynamics, and to apply frequency-recovery schemes of near-arbitrary shape and duration. 
 
 Many of the costs of adaptive PLL systems are instead borne at design-time. Incorporating the power-supply sensor feedback inside of the PLL feedback loop complicates its dynamics and overall design. Oscillator requirements for example those for frequency range and resolution, which typically dictate PLL power through their impact on noise and stability, are further complicated by the requirement for fast frequency shifting. 
 
-## Comparison Methodology
+\subsection{Comparison Methodology}
 
-The relative advantages of ACD and PLL systems manifest at different times. ACD-based systems reduce design-time complexity in exchange for run-time power and area. Adaptive PLLs, in contrast, can principally be designed at lower power, but with a more constrained, sensitive design process. Our comparison then proceeds along two lines:
+The relative advantages of ACD and PLL systems manifest at different times. ACD-based systems reduce design-time complexity in exchange for run-time power and area. Adaptive PLLs, in contrast, can principally be designed at lower power, but with a more constrained and sensitive design process. Our comparison then proceeds along two lines:
 
-* First, we examine the power and area requirements for an ACD-based actuator similar to that of [@wilcox2015].
-* Second, we present the design of an adaptive PLL similar to @[hashimoto2018], which we expect will alleviate many of the prominent design-time constraints. 
-* Our results then compare both the realized performance, power, and area of this PLL, along with its design process, flexibility, and portability to new process technologies. 
+\begin{enumerate}[(a)]
+\item First, we examine the power and area requirements for an ACD-based actuator similar to that of \cite{wilcox2015}.
+\item Second, we present the design of an adaptive PLL similar to \cite{hashimoto2018}, which we expect will alleviate many of the prominent design-time constraints. 
+\end{enumerate}
 
+Our results then compare both the realized performance, power, and area of this PLL, along with its design process, flexibility, and portability to new process technologies. 
 
 \section{Conclusion}
 \label{sec:conclusion}
