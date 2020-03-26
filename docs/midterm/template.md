@@ -1,6 +1,6 @@
 
 ---
-title: Adaptive Clock Generation PLL and Clock Distribution
+title: TEMPLATE TITLE
 author:
   - name: Dan Fritchman \& Wahid Rahman
     affiliation: University of California, Berkeley
