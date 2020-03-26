@@ -11,6 +11,6 @@ Adaptive clock generation techniques have emerged in recent generations of high-
 
 ### Report
 
-March 2020 [update report](docs/midterm) and accompanying (PDF)[docs/midterm/report.pdf].
+March 2020 [update report](docs/midterm) and accompanying [PDF](docs/midterm/report.pdf).
 
 
