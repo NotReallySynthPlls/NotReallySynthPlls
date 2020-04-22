@@ -1,4 +1,6 @@
 
 .ipynb*
-sim/
+sim*/
+*.log
+
 
