@@ -238,7 +238,10 @@ module pll (
     // FIXME: can this glitch on brake-event? Maybe, probably
     assign fbclk = div_count >= freq_target / 2;
 
-    // TDC
+    // TDC 
+    parameter TDC_STEP = 1 * 1e3; // In fs, units of tick-timescale
+    parameter TDC_RANGE = 2000; // Single-sided range, in units of LSBs
+    // FIXME: set TDC_RANGE = 1000 to show some failing
     always @(posedge fbclk) begin 
         phase_meas = $time;
         new_fb = 1'b1;
@@ -247,17 +250,17 @@ module pll (
         if (!resetn) begin 
             phase_lock_count = FLOCK_CYCLES;
         end else if (!new_fb) begin 
-            tdc_out = 4000; // Feedback late & outta range
+            tdc_out = TDC_RANGE; // Feedback late & outta range
         end else begin 
-            phase_targ = $time - 4e6; // Offset
-            phase_diff = (phase_meas - phase_targ) / 1e3;
-            tdc_out = phase_diff > 4000 ? 4000 : phase_diff < -4000 ? -4000 : phase_diff;
+            phase_targ = $time - TDC_RANGE * TDC_STEP; // Offset
+            phase_diff = (phase_meas - phase_targ) / TDC_STEP;
+            tdc_out = phase_diff > TDC_RANGE ? TDC_RANGE : phase_diff < -TDC_RANGE ? -TDC_RANGE : phase_diff;
 
             // Lock Detection Countdown
             // Requires `FLOCK_CYCLES` *consecutive* cycles of low error 
             // FIXME: this locks *once* and never again, for now.
             if (lock_state == FREQ_LOCKED) begin 
-                if (phase_diff < 2 && phase_diff > -2) begin
+                if (tdc_out < 2 && tdc_out > -2) begin
                     if (phase_lock_count > 0) phase_lock_count = phase_lock_count - 1;
                     else lock_state = PHASE_LOCKED;
                 end else begin // phase_lock_count > 1
