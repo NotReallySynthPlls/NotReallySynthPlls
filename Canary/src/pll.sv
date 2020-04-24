@@ -1,18 +1,16 @@
 `timescale 1fs/1fs
-`define NUM_STAGES 15
-`define REFCLK_PERIOD 8*1000*1000
 
 
-module dco_and_phase_sampling (
+module dco (
     input  int dctrl,
     input  logic refclk,
     input  logic resetn,
     output logic pclk, 
     output int dco_phase
 );
-    parameter real F0   = 3.99e9;
-    parameter real FMIN = 3e9;
-    parameter real FMAX = 5e9;
+    parameter real F0   = 3e9;
+    parameter real FMIN = 2e9;
+    parameter real FMAX = 7e9;
     parameter real KDCO = 5000.0; // Hz/code
     real freq, freq_calc, period, stage_delay;
     int dco_int_count, dco_frac_state;
@@ -60,35 +58,6 @@ module dco_and_phase_sampling (
 endmodule
 
 
-module dco_and_phase_sampling_ctrl (
-    input  int dctrl,
-    input  logic refclk,
-    input  logic resetn,
-    output logic pclk, 
-    output int dco_phase
-);
-    // Control-only phase-accumulator model 
-    
-    parameter real F0 = 4e9;
-    parameter real KDCO = 5000.0; // Hz/code
-    real freq, period;
-
-    // Main Sampling-Time Action
-    always @ (posedge refclk or negedge resetn) begin
-        if (!resetn) begin // Reset all our sampled signals
-            dco_phase = 0;
-        end else begin  // Sample DCO Phase
-            dco_phase <= dco_phase + 2 * `NUM_STAGES * `REFCLK_PERIOD * (F0 + KDCO * dctrl) / 1e15;
-        end 
-    end
-    
-    assign freq = F0 + dctrl * KDCO;
-    assign period = 1 / freq;
-
-    assign pclk = 1'b0;
-    
-endmodule
-
 
 module pll (
     input  wire refclk,
@@ -102,21 +71,22 @@ module pll (
     parameter real F0 = 4e9;
     parameter real KDCO = 5000.0; // Hz/code
 
-    parameter int KP = 10;
-    parameter int KI = 1;
+    parameter int KP_PHASE = 10;
+    parameter int KI_PHASE = 1;
     parameter int KP_FREQ = 0;
     parameter int KI_FREQ = 400;
 
-    int di, dp, dctrl;
+    int di_freq, dp_freq, di_phase, dp_phase, dctrl, dctrl_phase, dctrl_freq;
 
     // Brakes
     parameter real BRAKE_DELTA_F = 1.0e9;
-    parameter int BRAKE_CODE = BRAKE_DELTA_F / KDCO / KI;
+    parameter int BRAKE_CODE = BRAKE_DELTA_F / KDCO / KI_PHASE;
     parameter int BRAKE_DIV = 10 * 2 * `NUM_STAGES;
 
     logic ready;
-    real err_real;
-    int accum, accum_m1, targ_phase, err;
+    real phase_err_real, freq_err_real;
+    int accum_phase, accum_phase_m1, targ_phase, phase_err;
+    int accum_freq, accum_freq_m1, freq_err;
     int dco_phase, dco_phase_m1, dco_phase_diff, freq_target;
 
     enum { BRAKES_OFF, BRAKING, RECOVERING } brake_state;
@@ -131,7 +101,7 @@ module pll (
 
     assign freq_target = 2 * `NUM_STAGES * divn - brake_div_delta;
 
-    dco_and_phase_sampling i_dco (
+    dco i_dco (
         .dctrl(dctrl),
         .refclk(refclk),
         .resetn(resetn),
@@ -147,7 +117,8 @@ module pll (
             dco_phase_m1 = 0;
             dco_phase_diff = 0;
             targ_phase = 'd0;
-            accum_m1 = 0;
+            accum_phase_m1 = 0;
+            accum_freq_m1 = 0;
             ready = 1'b0;
 
             brake_state = BRAKES_OFF;
@@ -158,7 +129,8 @@ module pll (
             dco_phase_m1 <= dco_phase;  // Keep one past sample, in case we want frequency feedback 
             
             if (ready) begin // Make FB Loop updates. Several require a cycle of initialization. 
-                accum_m1 <= accum;
+                accum_phase_m1 <= accum_phase;
+                accum_freq_m1 <= accum_freq;
                 brake_code_delta <= 0;
 
                 
@@ -183,9 +155,14 @@ module pll (
         end 
     end
 
+
+    // Lock Detection & State 
+    enum { UNLOCKED, FREQ_LOCKED, PHASE_LOCKED } lock_state;
+
     // Frequency Count
-    int cycle_count, cycle_count_m1, fmeas, fmeas_startup, freq_err;
+    int cycle_count, cycle_count_m1, fmeas, fmeas_startup, freq_diff, flock_count;
     logic fmeas_ready;
+    parameter FLOCK_CYCLES = 10;
     always @(posedge pclk or negedge resetn) begin
         if (!resetn) begin 
             cycle_count = 0;
@@ -199,12 +176,26 @@ module pll (
             fmeas = 0;
             fmeas_ready = 1'b0;
             fmeas_startup = 2;
+            lock_state = UNLOCKED;
+            flock_count = FLOCK_CYCLES;
         end else begin 
             fmeas = cycle_count - cycle_count_m1;
             cycle_count_m1 = cycle_count;
-            freq_err = divn - fmeas;
+            freq_diff = divn - fmeas;
             if (fmeas_startup == 0) fmeas_ready = 1'b1;
-            else fmeas_startup = fmeas_startup - 1;
+            else fmeas_startup = fmeas_startup - 1; 
+            
+            // Lock Detection Countdown
+            // Requires `FLOCK_CYCLES` *consecutive* cycles of low error 
+            // FIXME: this locks *once* and never again, for now.
+            if (lock_state == UNLOCKED) begin 
+                if (freq_diff < 1 && freq_diff > -1) begin
+                    if (flock_count > 0) flock_count = flock_count - 1;
+                    else lock_state = FREQ_LOCKED;
+                end else begin // freq_diff > 1
+                    flock_count = FLOCK_CYCLES;
+                end 
+            end 
         end
     end
 
@@ -213,7 +204,7 @@ module pll (
     logic fbclk;
     always @(posedge pclk or negedge resetn) begin
         if (!resetn || div_count == 0) begin
-            div_count = divn-1;
+            div_count = divn - 1;
         end else begin 
             div_count = div_count - 1;
         end
@@ -221,7 +212,8 @@ module pll (
     assign fbclk = div_count >= divn/2;
 
     // TDC
-    int phase_targ, phase_meas, phase_err, tdc_out;
+    int phase_targ, phase_meas, phase_diff, tdc_out;
+    int phase_lock_count;
     logic new_fb;
     always @(posedge fbclk) begin 
         phase_meas = $time;
@@ -231,55 +223,41 @@ module pll (
         if (!new_fb) tdc_out = 4000; // Feedback late & outta range
         else begin 
             phase_targ = $time - 4e6; // Offset
-            phase_err = (phase_meas - phase_targ) / 1e3;
-            tdc_out = phase_err > 4000 ? 4000 : phase_err < -4000 ? -4000 : phase_err;
+            phase_diff = (phase_meas - phase_targ) / 1e3;
+            tdc_out = phase_diff > 4000 ? 4000 : phase_diff < -4000 ? -4000 : phase_diff;
+
+            // Lock Detection Countdown
+            // Requires `FLOCK_CYCLES` *consecutive* cycles of low error 
+            // FIXME: this locks *once* and never again, for now.
+            if (lock_state == FREQ_LOCKED) begin 
+                if (phase_diff < 1 && phase_diff > -1) begin
+                    if (phase_lock_count > 0) phase_lock_count = phase_lock_count - 1;
+                    else lock_state = PHASE_LOCKED;
+                end else begin // phase_lock_count > 1
+                    flock_count = FLOCK_CYCLES;
+                end 
+            end 
         end
         new_fb = 1'b0;
     end
 
     // Loop Filter
-    assign err = fmeas_ready ? tdc_out : 0; // TDC Loop
-    // assign err = fmeas_ready ? freq_err : 0; // FLL
+    assign phase_err = (lock_state != UNLOCKED) ? tdc_out : 0; // TDC Loop
+    assign accum_phase = phase_err + accum_phase_m1 - brake_code_delta;
+    assign dctrl_phase = accum_phase * KI_PHASE + phase_err * KP_PHASE;
+    assign phase_err_real = 1.0 * phase_err;
+
+    // Loop Filter
+    assign freq_err = (fmeas_ready && lock_state == UNLOCKED) ? freq_diff : 0; // FLL
+    assign accum_freq = freq_err + accum_freq_m1;
+    assign dctrl_freq = accum_freq * KI_FREQ + freq_err * KP_FREQ;
+    assign freq_err_real = 1.0 * freq_err;
+
+    // Sum here for now; eventually likely separate DCO paths
+    assign dctrl = dctrl_phase + dctrl_freq;
+
+    // DCO-TDC Edition
     //assign err = ready ? targ_phase - dco_phase : 0; // Note FB Loop inverts here
-    assign accum = err + accum_m1 - brake_code_delta;
-    assign dp = err * KP;
-    assign di = accum * KI;
-    assign dctrl = di + dp;
-    assign err_real = 1.0 * err;
 
 endmodule
 
-module tb ();
-    logic refclk, pclk, resetn, brake;
-    parameter REFCLK_PERIOD = `REFCLK_PERIOD;
-    
-    initial begin  // TB Setup
-        $dumpfile("test.vcd");
-        $dumpvars;
-
-        resetn = 1'b0;
-        brake = 1'b0;
-        #(1.5*REFCLK_PERIOD);
-        resetn = 1'b1;
-
-        #(1000*1000*1000);
-        // brake = 1'b1;
-    end
-    
-    initial begin  // Ref-Clock Generation
-        // Sadly these delays (in fs) get too big for ints!
-        // vcs has a sad tendency to replace them with zero. 
-        refclk = 1'b0;
-        for (int i=1600; i>0; i--) begin
-            #(REFCLK_PERIOD/2);
-            refclk = !refclk;
-        end
-        $finish;
-    end
-
-    // DUT 
-    parameter N = 32;
-
-    pll i_pll(refclk, resetn, brake, N, pclk);
-
-endmodule
