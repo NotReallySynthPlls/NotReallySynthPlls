@@ -15,11 +15,12 @@ module pll (
     parameter int K_PHASE_DIV = 1e4;
     parameter int KP_FREQ = 0;
     parameter int KI_FREQ = 10;
+    parameter int K_FREQ_DIV = 1e3;
 
     int di_freq, dp_freq, di_phase, dp_phase, dctrl, dctrl_phase, dctrl_freq;
 
     // Brakes
-    parameter real BRAKE_DELTA_F = 1e9;
+    parameter int BRAKE_DELTA_F = 1e9;
     parameter int BRAKE_CODE = K_PHASE_DIV * BRAKE_DELTA_F / `KDCO_FINE / KI_PHASE;
     // parameter int BRAKE_DIV = 10 * 2 * `NUM_STAGES;
     parameter int BRAKE_DIV = 10;
@@ -28,7 +29,7 @@ module pll (
     parameter int BRAKE_CYCLES = 500;
 
     logic ready;
-    real phase_err_real, freq_err_real;
+    // real phase_err_real, freq_err_real;
     int accum_phase, accum_phase_m1, targ_phase, phase_err;
     int accum_freq, accum_freq_m1, freq_err;
     int dco_phase, dco_phase_m1, dco_phase_diff, freq_target;
@@ -73,18 +74,18 @@ module pll (
         if (!resetn) begin 
 
             // Reset all our sampled signals
-            dco_phase_m1 = 0;
-            dco_phase_diff = 0;
-            targ_phase = 'd0;
-            accum_phase_m1 = 0;
-            accum_freq_m1 = 0;
-            ready = 1'b0;
+            dco_phase_m1 <= 0;
+            dco_phase_diff <= 0;
+            targ_phase <= 'd0;
+            accum_phase_m1 <= 0;
+            accum_freq_m1 <= 0;
+            ready <= 1'b0;
 
-            brake_state = BRAKES_OFF;
-            brake_hold_cycles = BRAKE_HOLD_CYCLES;
-            brake_countdown = 0;
-            brake_code_delta = 0;
-            brake_div_delta = 0;
+            brake_state <= BRAKES_OFF;
+            brake_hold_cycles <= BRAKE_HOLD_CYCLES;
+            brake_countdown <= 0;
+            brake_code_delta <= 0;
+            brake_div_delta <= 0;
 
         end else if (refclk) begin // Rising edge 
             dco_phase_m1 <= dco_phase;  // Keep one past sample, in case we want frequency feedback 
@@ -93,23 +94,21 @@ module pll (
                 accum_phase_m1 <= accum_phase;
                 accum_freq_m1 <= accum_freq;
                 brake_code_delta <= 0;
-
-                
                 targ_phase <= targ_phase + freq_target;
 
                 if (brake_state == BRAKING) begin
                     if (brake_countdown > 0) brake_countdown <= brake_countdown - 1;
                     else begin 
                         brake_state <= RECOVERING;
-                        brake_hold_cycles = BRAKE_HOLD_CYCLES;
-                        phase_lock_count = FLOCK_CYCLES;
-                        flock_count = FLOCK_CYCLES;
-                        lock_state = BRAKE_RECOVERY;
+                        brake_hold_cycles <= BRAKE_HOLD_CYCLES;
+                        phase_lock_count <= FLOCK_CYCLES;
+                        flock_count <= FLOCK_CYCLES;
+                        lock_state <= BRAKE_RECOVERY;
                     end
                 end else if (brake_state == RECOVERING) begin 
-                    if (brake_hold_cycles > 0) brake_hold_cycles = brake_hold_cycles - 1;
+                    if (brake_hold_cycles > 0) brake_hold_cycles <= brake_hold_cycles - 1;
                     else begin 
-                        brake_hold_cycles = BRAKE_HOLD_CYCLES;
+                        brake_hold_cycles <= BRAKE_HOLD_CYCLES;
                         if (brake_div_delta > (BRAKE_DIV_STEP-1)) brake_div_delta <= brake_div_delta - BRAKE_DIV_STEP;
                         else begin // We handled it! We're done!
                             brake_state <= BRAKES_OFF;
@@ -124,7 +123,7 @@ module pll (
             end 
             else begin // Falling edge refclk
                 targ_phase <= dco_phase + freq_target;
-                ready = 1'b1;
+                ready <= 1'b1;
             end
         end 
     end
@@ -169,8 +168,10 @@ module pll (
     // Feedback Divider
     int div_count;
     logic fbclk;
-    always @(posedge pclk or negedge resetn) begin
-        if (!resetn || div_count == 0) begin
+    always_ff @(posedge pclk or negedge resetn) begin
+        if (!resetn) begin 
+            div_count = freq_target - 1;
+        end else if (div_count == 0) begin
             div_count = freq_target - 1;
         end else begin 
             div_count = div_count - 1;
@@ -207,13 +208,13 @@ module pll (
     assign phase_err = (lock_state == FREQ_LOCKED || lock_state == PHASE_LOCKED) ? tdc_out : 0; // TDC Loop
     assign accum_phase = phase_err + accum_phase_m1 - brake_code_delta;
     assign dctrl_phase = (accum_phase * KI_PHASE + phase_err * KP_PHASE) / K_PHASE_DIV;
-    assign phase_err_real = 1.0 * phase_err;
+    // assign phase_err_real = 1.0 * phase_err;
 
     // Loop Filter
     assign freq_err = (fmeas_ready && (lock_state == UNLOCKED || lock_state == BRAKE_RECOVERY)) ? freq_diff : 0; 
     assign accum_freq = freq_err + accum_freq_m1;
-    assign dctrl_freq = (accum_freq * KI_FREQ + freq_err * KP_FREQ) / 1e3;
-    assign freq_err_real = 1.0 * freq_err;
+    assign dctrl_freq = (accum_freq * KI_FREQ + freq_err * KP_FREQ) / K_FREQ_DIV;
+    // assign freq_err_real = 1.0 * freq_err;
 
     // Sum here for now; eventually likely separate DCO paths
     assign dctrl = dctrl_phase + dctrl_freq;
