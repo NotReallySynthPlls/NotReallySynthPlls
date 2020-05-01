@@ -1,3 +1,5 @@
+`timescale 1fs/1fs
+
 
 module dco_and_phase_sampling (
     input  int dctrl,
