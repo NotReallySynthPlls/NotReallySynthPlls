@@ -38,9 +38,8 @@ module pll (
     logic fmeas_ready;
     parameter FLOCK_CYCLES = 255;
     // TDC
-    int phase_targ, phase_meas, phase_diff, tdc_out;
+    int tdc_out;
     int phase_lock_count;
-    logic new_fb;
 
     // Lock Detection & State 
     enum { UNLOCKED, FREQ_LOCKED, PHASE_LOCKED, BRAKE_RECOVERY } lock_state;
@@ -181,26 +180,18 @@ module pll (
     assign fbclk = div_count >= freq_target / 2;
 
     // TDC 
-    parameter TDC_STEP = 1 * 1e3; // In fs, units of tick-timescale
-    parameter TDC_RANGE = 4000; // Single-sided range, in units of LSBs
-    // FIXME: set TDC_RANGE = 1000, STEP=1e3 to show some failing
-    always @(posedge fbclk) begin 
-        phase_meas = $time;
-        new_fb = 1'b1;
-    end
+    pd i_pd(
+        .refclk(refclk),
+        .fbclk(fbclk),
+        .resetn(resetn),
+        .out(tdc_out)
+    );
+    // Phase-Lock Detector
     always @(posedge refclk or negedge resetn) begin 
         if (!resetn) begin 
             phase_lock_count = FLOCK_CYCLES;
-        end else if (!new_fb) begin 
-            tdc_out = TDC_RANGE; // Feedback late & outta range
         end else begin 
-            phase_targ = $time - TDC_RANGE * TDC_STEP; // Offset
-            phase_diff = (phase_meas - phase_targ) / TDC_STEP;
-            tdc_out = phase_diff > TDC_RANGE ? TDC_RANGE : phase_diff < -TDC_RANGE ? -TDC_RANGE : phase_diff;
-
             // Lock Detection Countdown
-            // Requires `FLOCK_CYCLES` *consecutive* cycles of low error 
-            // FIXME: this locks *once* and never again, for now.
             if (lock_state == FREQ_LOCKED) begin 
                 if (tdc_out < 2 && tdc_out > -2) begin
                     if (phase_lock_count > 0) phase_lock_count = phase_lock_count - 1;
@@ -210,7 +201,6 @@ module pll (
                 end 
             end 
         end
-        new_fb = 1'b0;
     end
 
     // Loop Filter
