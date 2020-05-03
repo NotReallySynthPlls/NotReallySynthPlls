@@ -11,13 +11,15 @@ module tb ();
 
         resetn = 1'b0;
         brake = 1'b0;
-        #(1.5*REFCLK_PERIOD);
+        #(101.5*REFCLK_PERIOD);
         resetn = 1'b1;
 
         for (int i=10; i>0; i--) begin
             #(1000*1000*1000); // 1µs
         end
         brake = 1'b1;
+        #(1000*1000); // 1ns
+        brake = 1'b0;
     end
     
     initial begin  // Ref-Clock Generation

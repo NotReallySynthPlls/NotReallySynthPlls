@@ -1,6 +1,54 @@
 `timescale 1fs/1fs
 
 
+module phase_samp_loop (
+    input  wire refclk,
+    input  wire resetn,
+    input  logic brake,
+    input  int  divn,
+    output reg  pclk
+);
+    // Decomissioned parts of direct-DCO-phase sampling loop
+    // Will find a way to fit it back into some other PLLs
+
+    int dco_phase, dco_phase_m1, dco_phase_diff, freq_target, targ_phase;
+    logic ready;
+
+    // Main Sampling-Time Action
+    always @ (resetn or refclk) begin
+        if (!resetn) begin // Reset all our sampled signals
+            dco_phase_m1 <= 0;
+            dco_phase_diff <= 0;
+            targ_phase <= 'd0;
+            accum_phase_m1 <= 0;
+            accum_freq_m1 <= 0;
+            ready <= 1'b0;
+
+        end else if (refclk) begin // Rising edge 
+            dco_phase_m1 <= dco_phase;  // Keep one past sample, in case we want frequency feedback 
+            
+            if (ready) begin // Make FB Loop updates. Several require a cycle of initialization. 
+                accum_phase_m1 <= accum_phase;
+                accum_freq_m1 <= accum_freq;
+                targ_phase <= targ_phase + freq_target;
+
+                // Frequency measurement 1-z**-1
+                // dco_phase_diff = dco_phase - dco_phase_m1; 
+                // err <= 2 * `NUM_STAGES * divn - dco_phase_diff; // Note FB Loop inverts here!
+            end 
+            else begin // Falling edge refclk
+                targ_phase <= dco_phase + freq_target;
+                ready <= 1'b1;
+            end
+        end 
+    end
+
+    // parameter int BRAKE_DIV = 10 * 2 * `NUM_STAGES;
+    // assign freq_target = 2 * `NUM_STAGES * divn - brake_div_delta;
+    //assign err = ready ? targ_phase - dco_phase : 0; // Note FB Loop inverts here
+
+endmodule
+
 module dco_and_phase_sampling (
     input  int dctrl,
     input  logic refclk,
