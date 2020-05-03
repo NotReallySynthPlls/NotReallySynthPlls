@@ -21,4 +21,21 @@
   * TDC
   * Counters
 
-  
+ * Got some DCO data
+ * Upcoming Tasks
+  * DCO views for back-end: LEF and LIB
+   * Liberty: timing analysis model 
+   * LEF: layout abstract
+   * How to tell Hammer to use them in library
+ * PLL SV Updates
+ * Report
+ * Read clock-insertion papers Bora recommended 
+* Frequency rebound controller - actuation latency
+ * PLL Dynamics/ Stability
+  * Bang-bang / TDC edition
+* Test-benching
+ * DCO Glitching - looks like no big deal
+ * Delay line/ DLL - power
+ 
+ 
+ 
