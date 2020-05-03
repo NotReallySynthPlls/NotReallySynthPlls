@@ -1,0 +1,90 @@
+// VerilogA for sdbx_wrahman, adc_3bit, veriloga
+
+`include  "discipline.h"
+`include  "constants.h" 
+`define NUM_ADC_BITS   3
+
+module adc_3b (vin, clk, dout);
+ input   vin, clk;
+ electrical vin, clk;
+
+ output  [`NUM_ADC_BITS-1:0] dout;
+ electrical [`NUM_ADC_BITS-1:0] dout;
+
+  parameter real  vmax = 0.7;
+  parameter real  vmin = 0;
+  parameter real   one = 0.7;
+  parameter real  zero = 0.0;
+  parameter real   vth = 0.35;
+  parameter real slack = 0.1p from (0:inf);
+  parameter real trise = 1p from (0:inf);
+  parameter real tfall = 1p from (0:inf);
+  parameter real tconv = 1p from [0:inf);
+  parameter integer traceflag = 0;
+
+     real   sample, vref, lsb, voffset;
+     real   vd[0:`NUM_ADC_BITS-1];
+     integer ii, binvalue;
+
+    analog begin
+       @(initial_step or initial_step("dc", "ac", "tran", "xf", "hb", "pss", "pnoise"))  begin
+        vref = (vmax - vmin) / 2.0;
+        lsb  = (vmax - vmin) / (1 << `NUM_ADC_BITS) ;
+        voffset = vmin;
+		    
+        if (traceflag)
+        $display("%M ADC  range ( %g v ) /  %d bits  = lsb %g volts.\n",
+                    vmax - vmin, `NUM_ADC_BITS, lsb );
+
+        generate i ( `NUM_ADC_BITS-1, 0) begin
+            vd[i] = 0 ;
+        end
+
+		binvalue = 0;
+        sample = V(vin) - voffset;
+        for ( ii = `NUM_ADC_BITS -1 ; ii>=0 ; ii = ii -1 ) begin
+        	vd[ii] = 0;
+	        if (sample >= vref ) begin
+	        	vd[ii] = one;
+	       		sample = sample - vref;
+	        	binvalue = binvalue + ( 1 << ii );
+	        end
+	        else begin
+	            vd[ii] = zero;
+	        end
+	            sample = sample * 2.0;
+        end
+        if (traceflag)
+        	$strobe("%M at %g sec. digital out: %d   vin: %g  (d2a: %g)\n",
+                       $abstime, binvalue,  V(vin), (binvalue*lsb)+voffset);
+    end
+
+      @(cross ( V(clk)-vth,  1, slack, clk.potential.abstol)) begin
+          binvalue = 0;
+          sample = V(vin) - voffset;
+          for ( ii = `NUM_ADC_BITS -1 ; ii>=0 ; ii = ii -1 ) begin
+            vd[ii] = 0;
+            if (sample >= vref ) begin
+              vd[ii] = one;
+              sample = sample - vref;
+              binvalue = binvalue + ( 1 << ii );
+            end
+            else begin
+             vd[ii] = zero;
+            end
+            sample = sample * 2.0;
+          end
+          if (traceflag)
+            $strobe("%M at %g sec. digital out: %d   vin: %g  (d2a: %g)\n",
+                       $abstime, binvalue,  V(vin), (binvalue*lsb)+voffset);
+      end
+
+      generate i ( `NUM_ADC_BITS-1, 0) begin
+         V(dout[i])  <+   transition ( vd[i] , tconv, trise, tfall );
+	  end
+    end				
+endmodule
+
+`undef NUM_ADC_BITS
+
+

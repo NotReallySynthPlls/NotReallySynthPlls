@@ -1,0 +1,49 @@
+// VerilogA for sdbx_wrahman, bin2therm3to8, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define Nbin 3
+`define Ntherm 8
+
+module bin2therm3to8(p_vdd,p_vss,bin,therm,therm_b);
+
+inout p_vdd, p_vss;
+input [`Nbin-1:0] bin;
+output [`Ntherm-1:0] therm;
+output [`Ntherm-1:0] therm_b;
+electrical p_vdd, p_vss;
+electrical [`Nbin-1:0] bin;
+electrical [`Ntherm-1:0] therm;
+electrical [`Ntherm-1:0] therm_b;
+
+parameter real tdelay = 1n;
+parameter real trisefall = 30p;
+
+real vdd, vss, vth;
+integer i, accum;
+integer out [`Ntherm-1:0];
+
+analog begin
+
+vdd = V(p_vdd);
+vss = V(p_vss);
+vth = (vdd+vss)/2;
+
+accum = 0;
+generate i (0, `Nbin-1, 1) begin
+  accum = accum + ( V(bin[i]) > vth ? 1 : 0) * pow(2,i);
+end // generate
+
+generate i (0, `Ntherm-1, 1) begin
+  out[i] = ( (i <= accum) ? 1 : 0 );
+end // generate
+
+generate i (0,`Ntherm-1, 1) begin
+  V(therm[i])   <+ transition(vdd*out[i]+vss*(1-out[i]), tdelay, trisefall, trisefall);
+  V(therm_b[i]) <+ transition(vdd*(1-out[i])+vss*out[i], tdelay, trisefall, trisefall);
+end // generate
+end // analog
+
+
+endmodule
