@@ -5,7 +5,7 @@
 // Design view name: config
 simulator lang=spectre
 global 0
-parameters Tstep=3.2n nPhase=1 VDD=0.7 TSTOP=5n fCLK=1G ctrl=7 \
+parameters Tstep=1.0n nPhase=1 VDD=0.7 TSTOP=2n fCLK=1G ctrl=7 \
     ctrlcoarse=127 ctrl2=ctrl TDEL=1p + nPhase/(5G*20)
 include "/home/ff/ee241/spring20-labs/asap7PDK_r1p5/models/hspice/7nm_TT.pm"
 
@@ -850,12 +850,15 @@ I32 (wctlcoarse wclk_ctl wctlbincoarse\<3\> wctlbincoarse\<2\> \
         wctlbinmid\<2\> wctlbinmid\<1\> wctlbinmid\<0\>) adc_8b vmax=VDD \
         vmin=0 one=VDD zero=0 vth=VDD/2.0 slack=1f trise=1p tfall=1p \
         tconv=1p traceflag=0
-simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp=27 \
+simulatorOptions options reltol=1e-5 vabstol=1e-6 iabstol=1e-12 temp=27 \
     tnom=27 scalem=1.0 scale=1.0 gmin=1e-12 rforce=1 maxnotes=5 maxwarns=5 \
     digits=5 cols=80 pivrel=1e-3 sensfile="../psf/sens.output" \
     checklimitdest=psf 
 tran tran stop=TSTOP write="spectre.ic" writefinal="spectre.fc" \
     annotate=status maxiters=5 
+
+ic wck_out=0.7
+
 finalTimeOP info what=oppoint where=rawfile
 modelParameter info what=models where=rawfile
 element info what=inst where=rawfile
@@ -865,7 +868,7 @@ primitives info what=primitives where=rawfile
 subckts info what=subckts where=rawfile
 save wck_out wctl2 
 saveOptions options save=allpub
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/bin2therm4to16/veriloga/veriloga.va"
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/bin2therm3to8/veriloga/veriloga.va"
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/adc_3bit/veriloga/veriloga.va"
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/adc_8bit/veriloga/veriloga.va"
+ahdl_include "bin2therm4to16.va"
+ahdl_include "bin2therm3to8.va"
+ahdl_include "adc_3bit.va"
+ahdl_include "adc_8bit.va"

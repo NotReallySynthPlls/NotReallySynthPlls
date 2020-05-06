@@ -874,7 +874,7 @@ save wctlbin\<2\> wctlbin\<1\> wctlbin\<0\> wctl_ena\<7\> wctl_ena\<6\> \
     wctl_enacoarse\<5\> wctl_enacoarse\<4\> wctl_enacoarse\<3\> \
     wctl_enacoarse\<2\> wctl_enacoarse\<1\> wctl_enacoarse\<0\> 
 saveOptions options save=selected
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/bin2therm4to16/veriloga/veriloga.va"
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/bin2therm3to8/veriloga/veriloga.va"
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/adc_3bit/veriloga/veriloga.va"
-ahdl_include "/home/aa/users/cs199-cnj/CustomCadenceLibs/sdbx_wrahman/adc_8bit/veriloga/veriloga.va"
+ahdl_include "bin2therm4to16.va"
+ahdl_include "bin2therm3to8.va"
+ahdl_include "adc_3bit.va"
+ahdl_include "adc_8bit.va"
