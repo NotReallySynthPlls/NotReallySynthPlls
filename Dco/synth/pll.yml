@@ -1,8 +1,5 @@
 # Technology Setup
-# Technology used is ASAP7
-vlsi.core.technology: asap7
-# Specify dir with ASAP7 tarball
-technology.asap7.tarball_dir: "/home/ff/ee241/spring20-labs/"
+vlsi.core.technology: skywater
 
 vlsi.core.max_threads: 12
 
@@ -87,14 +84,14 @@ vlsi.core.sram_generator_tool_path_meta: "append"
 # Tool options. Replace with your tool plugin of choice.
 # Genus options
 vlsi.core.synthesis_tool: "genus"
-vlsi.core.synthesis_tool_path: ["/home/ff/ee241/spring20-labs/ee241bS20/hammer-cadence-plugins/synthesis"]
+vlsi.core.synthesis_tool_path: ["/tools/B/dan_fritchman/ucb-bar/hammer-cadence-plugins/synthesis"]
 vlsi.core.synthesis_tool_path_meta: "append"
 synthesis.genus:
-  genus_bin: "${cadence.cadence_home}/GENUS${synthesis.genus.version}/bin/genus"
+  genus_bin: "${cadence.cadence_home}/GENUS/GENUS${synthesis.genus.version}/bin/genus"
   version: "181"
 # Innovus options
 vlsi.core.par_tool: "innovus"
-vlsi.core.par_tool_path: ["/home/ff/ee241/spring20-labs/ee241bS20/hammer-cadence-plugins/par"]
+vlsi.core.par_tool_path: ["/tools/B/dan_fritchman/ucb-bar/hammer-cadence-plugins/par"]
 vlsi.core.par_tool_path_meta: "append"
 par.innovus:
   innovus_bin: "${cadence.cadence_home}/INNOVUS${par.innovus.version}/bin/innovus"

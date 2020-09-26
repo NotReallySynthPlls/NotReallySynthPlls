@@ -7,7 +7,7 @@
 ###########################################################################################
 base_dir = $(abspath .)
 src_dir = $(base_dir)/src/
-ENV_YML ?= inst-env.yml
+ENV_YML ?= env.yml
 INPUT_CONFS ?= pll.yml
 HAMMER_EXEC ?= hammer-vlsi
 OBJ_DIR ?= build
