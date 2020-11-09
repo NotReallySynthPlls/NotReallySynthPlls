@@ -5,9 +5,7 @@ module bbpllDFE #(
        parameter NUM_DCO_CONTROL_BITS_FRC = 7,
        parameter NUM_EVEN_DIVISOR_BITS = 4,
        parameter NUM_LFSR_BITS = 16,
-       parameter NUM_PRND_MOD_BITS = 9,
-       parameter NUM_CTRL_COUNTER_BITS = 4,
-       parameter NUM_CLK_COUNTER_BITS = 7
+       parameter NUM_PRND_MOD_BITS = 9
 )(
        input wire reset,
        input wire referenceClock,
@@ -16,8 +14,9 @@ module bbpllDFE #(
        input wire phaseAcqEnable,
        input wire prndGeneratorEnable,
        input wire prndDitheringEnable,
-       input wire [2:0] lockThreshold,
        input wire dcoCtrlCodeOverride,
+       input wire ldDivideEnable,
+       input wire [8:0] lockThreshold,
        input wire [NUM_DCO_MATRIX_COLUMNS-2:0] dcoColSelectOverride,
        input wire [NUM_DCO_MATRIX_ROWS-2:0] dcoRowSelectOverride,
        input wire [NUM_EVEN_DIVISOR_BITS-1:0] divisor,
@@ -25,8 +24,8 @@ module bbpllDFE #(
        input wire [NUM_DCO_CONTROL_BITS_FRC-1:0] proportionalConstant,
        output wire [NUM_DCO_MATRIX_ROWS-2:0] dcoRowSelect,
        output wire [NUM_DCO_MATRIX_COLUMNS-2:0] dcoColumnSelect,
-       output wire locked,
-       output wire dcoDither
+       output wire dcoDither,
+       output wire locked
 );
 
 wire dividedClock, rstneg, updn, freqDec, freqInc, overflow, underflow, dcoCtrlCodeIntDec, dcoCtrlCodeIntInc;
@@ -140,15 +139,16 @@ frequencyDividerEvenDown #(
    .out               (dividedClock        )
 );
 
-lock_detect #(
-    .NUM_CTRL_COUNTER_BITS(NUM_CTRL_COUNTER_BITS),
-    .NUM_CLK_COUNTER_BITS(NUM_CLK_COUNTER_BITS)
+lock_detect_v2 #(
+    .NUM_INC_COUNTER_BITS(6),
+    .NUM_CLK_COUNTER_BITS(07)
 ) lock_detector (
     .clock(referenceClock),
     .reset(rstneg),
     .lockThreshold(lockThreshold),
     .freqUp(dcoCtrlCodeIntInc),
     .freqDn(dcoCtrlCodeIntDec),
+    .ldDivideEnable(ldDivideEnable),
     .locked(locked)
 );
 
