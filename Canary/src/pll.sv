@@ -1,24 +1,26 @@
-`timescale 1fs/1fs
 
 typedef enum { BRAKES_OFF, BRAKING, RECOVERING } brake_state_t;
 
+//! 
+//! # Supply Droop and Recovery Manager
+//! 
 module droop_mgr(
     input  logic refclk,
     input  logic resetn,
     input  logic brake,
     output brake_state_t brake_state,
-    output int delta_f,
-    output int delta_n
+    output longint delta_f,
+    output longint delta_n
 );
     // Brake Handling 
-    parameter int BRAKE_DELTA_F = 1e9;
-    parameter int BRAKE_CODE = 1e6; // FIXME: these param dependences: K_PHASE_DIV * BRAKE_DELTA_F / `KDCO_FINE / KI_PHASE;
-    parameter int BRAKE_DIV = 10; // Divider initial delta-N
-    parameter int BRAKE_DIV_STEP = 1; // Step size during divider recovery 
-    parameter int BRAKE_HOLD_CYCLES = 32; // How many ref-cycles to hold at each recovery-step
-    parameter int BRAKE_CYCLES = 500; // How many cycles to hold before beginning recovery
+    parameter longint BRAKE_DELTA_F = 1e9;
+    parameter longint BRAKE_CODE = 1e6; // FIXME: these param dependences: K_PHASE_DIV * BRAKE_DELTA_F / `KDCO_FINE / KI_PHASE;
+    parameter longint BRAKE_DIV = 10; // Divider initial delta-N
+    parameter longint BRAKE_DIV_STEP = 1; // Step size during divider recovery 
+    parameter longint BRAKE_HOLD_CYCLES = 32; // How many ref-cycles to hold at each recovery-step
+    parameter longint BRAKE_CYCLES = 500; // How many cycles to hold before beginning recovery
     
-    int brake_countdown, brake_code_delta, brake_div_delta, brake_hold_cycles;
+    longint brake_countdown, brake_code_delta, brake_div_delta, brake_hold_cycles;
 
     // Main FSM Action
     always_ff @(posedge refclk or negedge resetn) begin 
@@ -70,7 +72,33 @@ module droop_mgr(
 
 endmodule
 
+//! Proportional-Integral Loop Filter 
+module pi_filter #(
+    parameter longint KI = 1,
+    parameter longint KP = 1,
+    parameter longint DIV = 1
+)(
+    input  logic clk,
+    input  logic resetn,
+    input  longint inp,
+    output longint out
+);
+    longint accum, accum_m1;
 
+    assign accum = inp + accum_m1;
+    assign out = (accum * KI + inp * KP) / DIV;
+    
+    // Accumulator Updates
+    always_ff @(posedge clk or negedge resetn) begin
+        if (!resetn) accum_m1 <= 0;
+        else accum_m1 <= accum;
+    end
+endmodule
+
+
+//! 
+//! # Canary PLL 
+//! 
 module pll (
     input  logic refclk,
     input  logic resetn,
@@ -78,20 +106,9 @@ module pll (
     input  int  divn,
     output logic  pclk
 );
-    // Loop Params
-    parameter int KP_PHASE = 1e5;
-    parameter int KI_PHASE = 1e3;
-    parameter int K_PHASE_DIV = 1e4;
-    parameter int KP_FREQ = 0;
-    parameter int KI_FREQ = 10;
-    parameter int K_FREQ_DIV = 1e3;
-
-    int di_freq, dp_freq, di_phase, dp_phase, dctrl_phase, dctrl_freq, freq_target;
-
-    // Brakes
+    // Droop-Management Brakes
     brake_state_t brake_state;
-    int delta_f, delta_n;
-
+    longint delta_f, delta_n;
     droop_mgr i_droop_mgr (
         .refclk(refclk),
         .resetn(resetn),
@@ -101,28 +118,28 @@ module pll (
         .delta_n(delta_n)
     );
 
-    int accum_phase, accum_phase_m1, phase_err;
-    int accum_freq, accum_freq_m1, freq_err;
-
     // Frequency Count
-    int cycle_count, cycle_count_samp, cycle_count_m1, fmeas, fmeas_startup, freq_diff, flock_count;
+    longint cycle_count, cycle_count_samp, cycle_count_m1, fmeas, fmeas_startup, freq_diff, flock_count;
     logic fmeas_ready;
     parameter FLOCK_CYCLES = 255;
     // Phase Detector & Lock Detector
-    int pd_out, phase_lock_count;
+    longint pd_out, phase_lock_count;
 
     // Lock Detection & State 
-    enum { UNLOCKED, FREQ_LOCKED, PHASE_LOCKED } lock_state;
+    enum { UNLOCKED, COARSE_FREQ_LOCKED, FINE_FREQ_LOCKED, PHASE_LOCKED } lock_state;
 
     // Divider Target
+    longint freq_target;
     assign freq_target = divn - delta_n;
 
-    dco i_dco (
-        .dctrl_coarse(dctrl_freq),
-        .dctrl_fine(dctrl_phase),
-        .refclk(refclk),
+    longint dctrl [3];
+    dco #(
+        .nctrl(3),
+        .kdco({`KDCO_COARSE, `KDCO_FINE, `KDCO_FINE})
+    ) i_dco (
+        .ctrl(dctrl),
         .resetn(resetn),
-        .pclk(pclk), 
+        .pclk(pclk),
         .dco_phase(dco_phase)
     );
 
@@ -147,7 +164,7 @@ module pll (
     assign freq_diff = freq_target - fmeas;
 
     // Feedback Divider
-    int div_count;
+    longint div_count;
     logic fbclk;
     always_ff @(posedge pclk or negedge resetn) begin
         if (!resetn) begin 
@@ -161,7 +178,10 @@ module pll (
     assign fbclk = div_count >= freq_target / 2;
 
     // Phase Detector 
-    pd i_pd(
+    pd #(
+        .TDC_STEP(1),
+        .TDC_RANGE(1)
+    ) i_pd (
         .refclk(refclk),
         .fbclk(fbclk),
         .resetn(resetn),
@@ -179,14 +199,27 @@ module pll (
             // Requires `FLOCK_CYCLES` *consecutive* cycles of low error 
             // FIXME: this locks *once* and never again, for now.
             if (lock_state == UNLOCKED) begin 
-                if (fmeas_ready && freq_diff < 1 && freq_diff > -1) begin
+                if (fmeas_ready && freq_diff <= 1 && freq_diff >= -1) begin
                     if (flock_count > 0) flock_count <= flock_count - 1;
-                    else lock_state <= FREQ_LOCKED;
+                    else begin 
+                        flock_count <= FLOCK_CYCLES;
+                        lock_state <= COARSE_FREQ_LOCKED;
+                    end
                 end else begin // freq_diff > 1
                     flock_count <= FLOCK_CYCLES;
                 end 
-            end else if (lock_state == FREQ_LOCKED) begin 
-                if (pd_out < 2 && pd_out > -2) begin
+            end else if (lock_state == COARSE_FREQ_LOCKED) begin 
+                if (fmeas_ready && freq_diff <= 1 && freq_diff >= -1) begin
+                    if (flock_count > 0) flock_count <= flock_count - 1;
+                    else begin 
+                        flock_count <= FLOCK_CYCLES;
+                        lock_state <= FINE_FREQ_LOCKED;
+                    end
+                end else begin // freq_diff > 1
+                    flock_count <= FLOCK_CYCLES;
+                end 
+            end else if (lock_state == FINE_FREQ_LOCKED) begin 
+                if (pd_out < 5 && pd_out > -5) begin
                     if (phase_lock_count > 0) phase_lock_count <= phase_lock_count - 1;
                     else lock_state <= PHASE_LOCKED;
                 end else begin // phase error too big
@@ -196,36 +229,68 @@ module pll (
         end
     end
 
-    // Phase Loop Filter
-    logic freq_fb_en, phase_fb_en;
-    assign freq_fb_en  = (fmeas_ready && (lock_state == UNLOCKED || brake_state != BRAKES_OFF));
-    assign phase_fb_en = (fmeas_ready && (lock_state == FREQ_LOCKED || lock_state == PHASE_LOCKED) && brake_state == BRAKES_OFF);
+    // Loop Selection 
+    logic coarse_freq_fb_en, fine_freq_fb_en, phase_fb_en;
+    assign coarse_freq_fb_en  = (fmeas_ready && (lock_state == UNLOCKED || brake_state != BRAKES_OFF));
+    assign fine_freq_fb_en = (fmeas_ready && (lock_state != UNLOCKED) && brake_state == BRAKES_OFF);
+    assign phase_fb_en = (fmeas_ready && (lock_state == FINE_FREQ_LOCKED || lock_state == PHASE_LOCKED) && brake_state == BRAKES_OFF);
 
-    assign phase_err = phase_fb_en ? pd_out : 0; // TDC Loop
-    assign accum_phase = phase_err + accum_phase_m1 - delta_f;
-    assign dctrl_phase = (accum_phase * KI_PHASE + phase_err * KP_PHASE) / K_PHASE_DIV;
+    // Loop Params
+    parameter longint KP_PHASE = 0;//1e11;
+    parameter longint KI_PHASE = 30e3;//KP_PHASE / 32;
+    parameter longint K_PHASE_DIV = 1e3;
+    parameter longint KP_FREQ = 0;
+    parameter longint KI_FREQ = 10;
+    parameter longint K_FREQ_DIV = 1e3;
 
     // Frequency Loop Filter
-    assign freq_err = freq_fb_en ? freq_diff : 0; 
-    assign accum_freq = freq_err + accum_freq_m1;
-    assign dctrl_freq = (accum_freq * KI_FREQ + freq_err * KP_FREQ) / K_FREQ_DIV;
+    longint freq_err;
+    assign freq_err = coarse_freq_fb_en ? freq_diff : 0; 
+    pi_filter #(
+        .KI(KI_FREQ),
+        .KP(KP_FREQ),
+        .DIV(K_FREQ_DIV)
+    ) i_filt_freq_coarse (
+        .clk(refclk),
+        .resetn(resetn),
+        .inp(freq_err),
+        .out(dctrl[0])
+    );
 
-    // Accumulator Updates
-    always_ff @(posedge refclk or negedge resetn) begin
-        if (!resetn) begin 
-            accum_phase_m1 <= 0;
-            accum_freq_m1 <= 0;
-        end else begin // Rising edge 
-            accum_phase_m1 <= accum_phase;
-            accum_freq_m1 <= accum_freq;
-        end 
-    end
+    // Fine-Frequency Loop Filter
+    longint freq_err_fine;
+    assign freq_err_fine = fine_freq_fb_en ? freq_diff : 0;
+    pi_filter #(
+        .KP(0),
+        .KI(10),
+        .DIV(1)
+    ) i_filt_freq_fine (
+        .clk(refclk),
+        .resetn(resetn),
+        .inp(freq_err_fine),
+        .out(dctrl[1])
+    );
+
+    // Phase Loop Filter
+    longint phase_err;
+    assign phase_err = phase_fb_en ? pd_out : 0; 
+    longint phase_ctrl_nc;
+    pi_filter #(
+        .KP(800),
+        .KI(0),
+        .DIV(10)
+    ) i_filt_phase (
+        .clk(refclk),
+        .resetn(resetn),
+        .inp(phase_err),
+        .out(dctrl[2])
+    );
 
     // Debug real-valued error signals
     // Sadly, synthesis doesnt wanna ignore these
-    // real phase_err_real, freq_err_real;
-    // assign freq_err_real = 1.0 * freq_err;
-    // assign phase_err_real = 1.0 * phase_err;
+    real phase_err_real, freq_err_real;
+    assign freq_err_real = 1.0 * freq_diff;
+    assign phase_err_real = 1.0 * phase_err;
 
-endmodule
+endmodule // pll 
 

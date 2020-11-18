@@ -19,17 +19,16 @@ module dco #(
 
 	always_comb begin
 		// Reverse-engineer this thing's integer-valued code 
-  	count_ones = '0; 
+  		count_ones = '0; 
 		foreach(col_sel_b[idx]) begin
 			count_ones += col_sel_b[idx];
 		end
 		col_count = NUM_DCO_MATRIX_COLUMNS-1 - count_ones;
-  	count_ones = '0; 
+  		count_ones = '0; 
 		foreach(row_sel_b[idx]) begin
 			count_ones += row_sel_b[idx];
 		end
 		row_count = NUM_DCO_MATRIX_ROWS-1 - count_ones;
-		//code = 2^(NUM_DCO_MATRIX_ROWS-1) * row_count + col_count;
 		code = NUM_DCO_MATRIX_COLUMNS * row_count + col_count;
 	end
 	
