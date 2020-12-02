@@ -76,7 +76,8 @@ endmodule
 module pi_filter #(
     parameter longint KI = 1,
     parameter longint KP = 1,
-    parameter longint DIV = 1
+    parameter longint DIV = 1,
+    parameter longint LIMIT = 20e3
 )(
     input  logic clk,
     input  logic resetn,
@@ -85,7 +86,12 @@ module pi_filter #(
 );
     longint accum, accum_m1;
 
-    assign accum = inp + accum_m1;
+    always_comb begin
+        accum = inp + accum_m1;
+        if (accum > LIMIT)  accum =  LIMIT;
+        if (accum < -LIMIT) accum = -LIMIT;
+    end
+
     assign out = (accum * KI + inp * KP) / DIV;
     
     // Accumulator Updates
@@ -93,6 +99,7 @@ module pi_filter #(
         if (!resetn) accum_m1 <= 0;
         else accum_m1 <= accum;
     end
+
 endmodule
 
 
@@ -178,10 +185,7 @@ module pll (
     assign fbclk = div_count >= freq_target / 2;
 
     // Phase Detector 
-    pd #(
-        .TDC_STEP(1),
-        .TDC_RANGE(1)
-    ) i_pd (
+    pd #( .BANG_BANG(1) ) i_pd (
         .refclk(refclk),
         .fbclk(fbclk),
         .resetn(resetn),
@@ -232,7 +236,7 @@ module pll (
     // Loop Selection 
     logic coarse_freq_fb_en, fine_freq_fb_en, phase_fb_en;
     assign coarse_freq_fb_en  = (fmeas_ready && (lock_state == UNLOCKED || brake_state != BRAKES_OFF));
-    assign fine_freq_fb_en = (fmeas_ready && (lock_state != UNLOCKED) && brake_state == BRAKES_OFF);
+    assign fine_freq_fb_en = (fmeas_ready && (lock_state == COARSE_FREQ_LOCKED) && brake_state == BRAKES_OFF);
     assign phase_fb_en = (fmeas_ready && (lock_state == FINE_FREQ_LOCKED || lock_state == PHASE_LOCKED) && brake_state == BRAKES_OFF);
 
     // Loop Params
@@ -249,7 +253,8 @@ module pll (
     pi_filter #(
         .KI(KI_FREQ),
         .KP(KP_FREQ),
-        .DIV(K_FREQ_DIV)
+        .DIV(K_FREQ_DIV),
+        .LIMIT(1024)
     ) i_filt_freq_coarse (
         .clk(refclk),
         .resetn(resetn),
@@ -263,7 +268,8 @@ module pll (
     pi_filter #(
         .KP(0),
         .KI(10),
-        .DIV(1)
+        .DIV(1),
+        .LIMIT(1024)
     ) i_filt_freq_fine (
         .clk(refclk),
         .resetn(resetn),
@@ -276,9 +282,10 @@ module pll (
     assign phase_err = phase_fb_en ? pd_out : 0; 
     longint phase_ctrl_nc;
     pi_filter #(
-        .KP(800),
-        .KI(0),
-        .DIV(10)
+        .KP(10),
+        .KI(1),
+        .DIV(1),
+        .LIMIT(64)
     ) i_filt_phase (
         .clk(refclk),
         .resetn(resetn),

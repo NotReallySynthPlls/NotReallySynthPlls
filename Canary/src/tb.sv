@@ -5,7 +5,7 @@ module tb ();
     logic refclk, pclk, resetn, brake;
     logic edge_meas_enable;
     parameter refclk_period = 8ns;
-    parameter divn = 32;
+    parameter divn = 27;
     
     initial begin  // TB Setup
         $dumpfile("test.vcd");
@@ -24,14 +24,12 @@ module tb ();
         // brake = 1'b1;
         // brake = #1ns 1'b0;
 
-        #50us $finish;
+        #10us $finish;
     end
     
     initial begin  // Ref-Clock Generation
         refclk = 1'b0;
-        forever begin
-            refclk = #(refclk_period/2) ~refclk;
-        end
+        forever refclk = #(refclk_period/2) ~refclk;
     end
 
     // Clock Edge Measurement 
