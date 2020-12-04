@@ -103,7 +103,7 @@ It's worth digging around which parts of the charge-pump PLL are so objectionabl
 
 Those charge-pump currents, resistors and caps sure ain't digital. The phase-frequency detector, in contrast, looks pretty digital already: 
 
-<img src="image-20201202142409733.png" alt="image-20201202142409733" style="zoom:50%;" />
+<img src="image-20201202142409733.png" alt="image-20201202142409733" style="width:25%;" />
 
 *From Razavi, Design of Analog CMOS Integrated Circuits*
 
@@ -122,7 +122,7 @@ Not quite. The three-state PFD does have a sole analog-ish facet: its output enc
 
 If we really want to use a traditional digital loop filert, we've got to make a set of domain-transformations that looks more like this: 
 
-![adc_dac](adc_dac.svg)
+<img src="adc_dac.svg" alt="adc_dac" style="width:100%;" />
 
 
 
@@ -332,7 +332,7 @@ One of the most counter-intuitive conclusions from [Wong JSSC 2006](https://ieee
 
 ## Aside: On How These Things Get Simulated 
 
-
+(Coming Soon)
 
 * Simulink 
 * CppSim
