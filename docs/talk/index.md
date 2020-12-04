@@ -17,7 +17,7 @@
 
 
 
-This is a survey of digital PLL methods that I find good, bad, or just interesting. We'll primarily focus on clock generation for SoCs and other synchronous digital logic, while occassionally nodding to other uses of PLLs and their differences. A few related themes run throughout: (a) why won't these old analog PLLs go away, (b) what really makes these circuits digital in the first place, and (c) whatever that is, can we just get the good parts? 
+This is a survey of digital PLL ideas that I find good, bad, or just interesting. We'll primarily focus on clock generation for SoCs and other synchronous digital logic, while occassionally nodding to other uses of PLLs and their differences. A few related themes run throughout: (a) why won't these old analog PLLs go away? (b) what really makes these circuits digital in the first place? and (c) whatever that is, can we just get the good parts? 
 
 
 
@@ -25,7 +25,7 @@ This is a survey of digital PLL methods that I find good, bad, or just interesti
 
 The whole point of a clock-generator is providing a stable time-base for a synchronous system. Beyond than the suite of metrics that characterize *every* class of circuit (power, area, delays, ranges, flexibility, etc.), clock generators really have one unique metric: their timing noise. 
 
-Problem is, time and noise are two ideas we have a tough time merging. And different classes of digital systems - the circuits *using* the clock - depend on very different quantities which tend to get lumped together under the single term *jitter*. There are at least two such quantities (not metrics - altogether different quantities) listed in Table 1 (and a third which is often listed, and rarely useful): phase jitter, period jitter, and cycle-to-cycle jitter. 
+Problem is, time and noise are two ideas we have a tough time merging. And different classes of digital systems - the circuits *using* the clock - depend on very different quantities which tend to get lumped together under the single term *jitter*. There are at least two such quantities (not metrics - altogether different quantities) listed in Table 1 (and a third which is often listed, and rarely useful). 
 
 Probably the best gentle-intro to these quantities comes from Gerry Talbot & Co's work from [ITC 2004](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=1387390) and [DesignCon 2005](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.134.398&rep=rep1&type=pdf). They (among others) make a valuable analogy between these time-quantities and positional ones. Phase is position, frequency (or period) is velocity, and... we'll talk about that third row, which maps onto acceleration. 
 
@@ -37,7 +37,7 @@ Probably the best gentle-intro to these quantities comes from Gerry Talbot & Co'
 
 Notably in these analogies: 
 
-* Although we often state them as RMS or peak values, *all three of these quantities are time-sequences*
+* Although we often state them as RMS or peak values, *all three of these quantities are time-sequences*. 
 * Like the positional analogies, phase, period, and cycle-to-cycle jitter are differentially related. Frequency (period) is the derivative of phase, and "cycle to cycle" (whatever that is) is the derivative of frequency. 
 * Unlike in the positional analogies, the units of the three jitter quantities are all the same: time. Generally values of all three are reported in time-units, e.g. picoseconds RMS. 
 
@@ -47,7 +47,7 @@ Notably in these analogies:
 
 The real point here is the **Who Cares** column. Notably different classes of circuits care entirely about one or the other of phase and period jitter - and rarely both. Most of the analog-ier classes care about phase, while digital-ier stuff cares about period. (We'll shortly discuss why.) 
 
-And the question-marks in our bottom-right entry are very sincere: I'm yet to find an electronic system that cares one bit about cycle-to-cycle jitter. This is a quantity that sparks a wide divide between chip and system designers. Discrete clock-sources tend to report cycle-to-cycle jitter (generally without also including either phase or period). Integrated PLL designers, in contrast, rarely report (or even measure) this quantity at all. The case for reporting it has something to do with the stability of measuring it, or the repeatability of measuring it, or some argument I hear every so often, and never buy. More relevant: systems fail when they misunderstand or misplace these quanties. [Talbot & co](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.134.398&rep=rep1&type=pdf) show a number of examples of just how different 1ns cycle-to-cycle and 1ns of phase jitter can be. 
+And the question-marks in our bottom-right entry are very sincere: I'm yet to find an electronic system that cares one bit about cycle-to-cycle jitter. This is a quantity that sparks a wide divide between chip and system designers. Discrete clock-sources tend to report cycle-to-cycle jitter (generally without also including either phase or period). Integrated PLL designers, in contrast, rarely report (or even measure) this quantity at all. The case for reporting it has something to do with the stability of measuring it, or the repeatability of measuring it, or some argument I hear every so often (and never buy). More relevant: systems fail when they misunderstand or misplace these quanties. [Talbot & co](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.134.398&rep=rep1&type=pdf) show a number of examples of just how different 1ns cycle-to-cycle and 1ns of phase jitter can be. 
 
 
 
@@ -61,13 +61,13 @@ The difference boils down to correlation between the transmitter and receiver. I
 
 *[Rahman & Fritchman, "Proceedings of Bora's Course"](https://github.com/NotReallySynthPlls/FinalReport/blob/master/conference_101719.pdf)*
 
-In the serial link, in contrast, transmitter and receiver have related but *different clocks* - specifically from the perspective of clock-source noise. A receiver CDR PLL commonly derives (what it hopes to be) a phase-shift replica of the TX clock. By definition this PLL has finite bandwidth, so noise on the TX clock outside this bandwidth (e.g. the immediate response to a phase step) is filtered out, mis-aligning the sampling time and increasing the BER. 
+In the serial link, in contrast, transmitter and receiver have related but *different clocks* - specifically from the perspective of clock-source noise. A receiver CDR PLL commonly derives (what it hopes to be) a phase-shifted replica of the TX clock. By definition this PLL has finite bandwidth, so noise on the TX clock outside this bandwidth (e.g. the immediate response to a phase step) is filtered out, mis-aligning the sampling time and increasing the BER. 
 
 ![image-20201203101333726](image-20201203101333726.png)
 
 *Talbot & Co, [ITC 2004](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=1387390), [DesignCon 2005](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.134.398&rep=rep1&type=pdf)*
 
-Note the fact that TX and RX reside on separate chips doesn't directly affect this sensitivity. Source-synchronous inter-chip interfaces, such as those commonly used by DRAM, look much more like the synchronous logic in this respect. 
+Note the fact that TX and RX reside on separate chips doesn't (directly) matter at all. Source-synchronous inter-chip interfaces, such as those commonly used by DRAM, look much more like the synchronous logic in this respect. 
 
 A few simple thought experiments can help tease out which sensitivity any given system has. For a system with nominal period T: 
 
@@ -84,7 +84,7 @@ Some good news: since we're focusing on SoC, processor, and logic clock-generati
 
 ## Back to PLLs, in Analog World 
 
-Despite the lack of overt need for locking to any particular phase, SoC clock generators are still primarily built from PLLs. In principal, these systems could use an open-loop oscillator, if we could find one that was (a) sufficiently stable across temperature, voltage, or any other long-term variations, (b) had sufficient programmability to cover any diversity in target system frequencies, and (c) oscillated at the target system frequencies. 
+Despite the lack of overt need for locking to any particular phase, SoC clock generators are still primarily built from PLLs. In principal, these systems could use an open-loop oscillator, if we could find one with (a) sufficient stability across temperature, voltage, and any other long-term variations, (b) sufficient programmability to cover any diversity in target system frequencies, and (c) oscillated at the target system frequencies. 
 
 We don't really have any of those. The typical SoC clock generator (shown here in analog form) uses a lower-frequency oscillator, paired with a feedback-based frequency multiplier (the PLL). Programmability is afforded via the division ratio N, assuming we can tweak any related parameters (e.g. for loop stability) along with it. All of the liabilities of feedback systems (their propensity to oscillate, intolerable analog guys talking about their phase-whatever) come along for the ride.
 ![image-20201202134327180](image-20201202134327180.png)
@@ -111,7 +111,9 @@ This is commonly known as the three-state PFD, for the simple FSM which it imple
 
 So, can we just replace the ugly current-source and electrical filter with a digital accumulator and call it a day? 
 
-Not quite. The three-state PFD does have a sole analog-ish facet: its output encoding. Phase and frequency error is encoded as a *pulse width* - more specifically the difference between the two pulse widths on the *up* and *down* (pictured as QA and QB) signals.  The charge-pump PLL does a set of domain transformations along the way: 
+Not quite. The three-state PFD does have a sole analog-ish facet: its output encoding. Phase and frequency error is encoded as a *pulse width* - more specifically the difference between the two pulse widths on the *up* and *down* (pictured as QA and QB) signals.  
+
+More generally, the charge-pump PLL does a set of domain transformations at essentially every block: 
 
 * The PFD converts frequency and phase error into pulse-width 
 * The charge pump convertes pulse-width into current
@@ -126,7 +128,7 @@ If we really want to use a traditional digital loop filert, we've got to make a 
 
 
 
-Phase and frequency are both continuous quantities. We quantize and sample (ADC) the error-phase, in order to digitally filter it and transform it back to time (via the DCO). 
+Phase and frequency are both continuous quantities. We quantize and sample the error-phase (via a time-ADC), in order to digitally filter it and transform it back to time (via the DCO). 
 
 Both this ADC and DAC can be relatively implicit (although many PLLs design an explicit DAC, and some an explicit ADC). The ADC operates on a weird kinda quantity, attempting to digitize phase (time). While neither needs to be a world-class data converter, they nonetheless bring along many data-converter liabilities - particularly the data-converter "golden rule". 
 
@@ -150,15 +152,15 @@ Why does this tend to happen? I think there are a combination of real, instrinsi
 
 The intrinsic reasons start with our range-resolution trade-off: quantization error of *both* the phase-ADC and DCO-DAC contribute to timing noise. For example, imagine we need a 1-5 GHz frequency range, and manage to design a perfectly-linear 7 (binary) bit DCO. (Pretty good.) At our low frequencies, quantization error of that DCO alone generates jitter equal to 6.25% of a period. That's probably more than our digital logic wants to tolerate, and it's before we add any other noise source. 
 
-Just about any wide-range digital PLL uses some form of *frequency banding*, offline calibration, or other frequency sub-ranging approach. The range-resolution trade-off is generally too painful for SoC-style clocks, which generally have a wide range to support a diversity of power states. Note this also means these PLLs *cannot* slowly walk from their min to max frequencies, without going through some form of re-training, calibration, or banding. (Granted some analog ones have the same constraint.) 
+Just about any wide-range digital PLL uses some form of *frequency banding*, offline calibration, or other frequency sub-ranging approach. The range-resolution trade-off is generally too painful for SoC-style clocks, which generally have a wide range to support a diversity of power states. Note this also means these PLLs cannot slowly walk from their min to max frequencies, without going through some form of re-training, calibration, or banding. (Granted some analog ones have the same constraint.) 
 
-This is also why digital architectures have a sort of "well-shaped" utility versus noise performance. The lowest-performing PLLs benefit from the digital construction methods. The highest-performing PLLs for wireless applications can also disproportionally use digital techniques - but largely due to their narrow frequency range. [Staszewski's pioneering digital RF PLLs](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=4100882) serve as prominent examples. 
+This is also why digital architectures have a sort of "well-shaped" utility versus noise performance. The lowest-performing PLLs benefit from the digital construction methods. The highest-performing PLLs for wireless applications can also disproportionally use digital techniques - but only due to their narrow frequency range. [Staszewski's pioneering digital RF PLLs](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=4100882) serve as prominent examples. 
 
 Similar range-resolution problems apply to common digital phase detectors, which we'll cover next. 
 
 But first, the cultural factors. Designing PLLs requires a set of knowledge that, well, analog guys more commonly have. Just the feedback network design and transistor-level DCO design rules out the majority of IC designers. The charge-pump PLL has a nicely tractable analytical model, in language these folks understand. Linear frequency-domain models are well understood, and more importantly *they actually work*. University courses and books commonly offer its design as curriculum. (Notably, Berkeley's most recent *Advance Digital IC* course included the design equations and procedure for charge-pump PLLs - and then just mentioned that digital PLLs exist. This strikes me as a typical level of coverage.)
 
-The analog skill-set applies to more than designing current-sources and filters, it also tends to manifest in what designers *won't* do, and *won't* trust. These calibration, ranging, and general behavioral mechanics commonly qualify. As our computer-architecture friends will gladly tell us, things to go catastrophically wrong tend to do so in control logic. So it is with PLLs. A common example: the hand-off between what tends to be a series of different-range phase-frequency detectors. Each digital PLL makes a set of decisions as to whether its multiple feedback loops are somehow combined, or sequentially handed off from one to the next. Behind both doors there lay some dragons. For the analog tribe, particularly behind the latter. The three-state PFD, in contrast, is really ingenious in its ability to pull the PLL into lock for essentially any state. 
+The analog skill-set applies to more than designing current-sources and filters, it also tends to manifest in what designers *won't* do, and *won't* trust. These calibration, ranging, and general behavioral mechanics commonly qualify. As our computer-architecture friends will gladly tell us, things to go catastrophically wrong tend to do so in control logic. So it is with PLLs. A common example: the hand-off between what tends to be a series of different-range phase-frequency detectors. Each digital PLL makes a set of decisions as to whether its multiple feedback loops are somehow combined, or sequentially handed off from one to the next. Behind both doors there lay some dragons. For the analog tribe, particularly behind the latter. The three-state PFD, in contrast, is really ingenious in its ability to pull the PLL into lock from essentially any state. 
 
 
 
@@ -172,13 +174,13 @@ Back to less human-contingent topics: we previewed the digital PLL's need for a 
 
 I find it helpful to discuss the TDC in data-converter terms, rather than digital-circuit ones. Like every other ADC, the TDC needs a reference, which tends to be the delay through some on-chip delay-cells. (These delays are then often calibrated offline.) Both the noise and quantization error of the TDC contribute to timing noise, so many digital PLLs go to great lengths to design quite elaborate ones. 
 
-These high-resolution needs coupled with the PLL's inherent filtering effects have driven attempts at delta-sigma modulated TDCs. Mike Perrott's group at MIT, particularly keyed by Matt Straayer, have been particularly prolific on this topic. The hard part of a delta-sigma TDC is that for most of a reference period, the TDC does... nothing. Effective delta-sigma modulation requires bucket-brigading each cycle's quantization error over to the next. Straayer's gated-ring-oscillator TDCs attempt to do so by "freezing" the state or a ring oscillator, and allowing it to continue oscillating only for short intervals proportional to the phase error. 
+These high-resolution needs coupled with the PLL's inherent filtering effects have driven attempts at delta-sigma modulated TDCs. Mike Perrott's group at MIT, particularly keyed by Matt Straayer, have been particularly prolific on this topic. The hard part of a delta-sigma TDC is that for most of a reference period, the TDC does... well, nothing. Effective delta-sigma modulation requires bucket-brigading each cycle's quantization error over to the next. Straayer's gated-ring-oscillator TDCs attempt to do so by "freezing" the state or a ring oscillator, and allowing it to continue oscillating only for short intervals proportional to the phase error. 
 
 ![image-20201202175036923](image-20201202175036923.png)
 
 [*Straayer JSSC 2009*](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=4804998)
 
-The gated-ring TDC is pretty far out there. I don't know anyone who's designed one, and doubt I know anyone who would have the guts to. But it's a good indication of the demands good PLLs place on these TDCs. 
+The gated-ring TDC is pretty far out there. I don't know anyone who's designed one, and doubt I know anyone who would have the guts to. But it's a good indication of the demands good PLLs place on these TDCs, and the lengths designers take to meet them. 
 
 
 
@@ -190,7 +192,7 @@ Rather than designing a high-resolution phase detector, many PLLs opt for the mi
 
 [*Xu & Abidi, TCAS 2017*](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=7885515)
 
-A classic BB-PLL (and a local favorite) is Rylyakov, Friedman, Tierno, and co's work presented at ISSC 2007. The Rylyakov PLL includes among the most-direct digital-to-frequency ring-DCO's presented, comprised of a matrix of gated-inverter cells, enabled a single cell at a time. This level of digital-iness is about where authors start invoking the name "all digital" PLLs. 
+A classic BB-PLL (and a local favorite) is Rylyakov, Friedman, Tierno, and co's work presented at ISSC 2007. The Rylyakov PLL includes among the most-direct digital-to-frequency ring-DCO's presented, comprised of a matrix of gated-inverter cells, enabled a single cell at a time. This level of digital-iness is about where authors start invoking the  "all digital" PLL signifier. 
 
 ![image-20201203090859240](image-20201203090859240.png)
 
@@ -236,7 +238,7 @@ Preferably, we could use popular digital-design flows - HDLs, logic synthesis, a
 
 ### Injection Locking 
 
-Deng identified that many of the non-idealities imposes by automatic layout generation could be architecturally indeminfied by using *injection locking*. This technique drops the phase detector altogether, and instead injects the reference signal as a "reset" into the controlled-oscillator. Injection locking has been around as long as PLLs themselves, although less prominently in recent decades. IL-PLLs generally need a separate means of frequency-locking, typically in the form of an internal FLL. Deng's 2014 work pictured below uses a replica oscillator for this frequency-loop; many other IL-PLLs use "the" oscillator directly. 
+Deng identified that many of the non-idealities imposes by automatic layout generation could be architecturally indeminfied via *injection locking*. This technique drops the phase detector altogether, and instead injects the reference signal as a "reset" into the controlled-oscillator. Injection locking has been around as long as PLLs themselves, although less prominently in recent decades. IL-PLLs generally need a separate means of frequency-locking, typically in the form of an internal FLL. Deng's 2014 work pictured below uses a replica oscillator for this frequency-loop; many other IL-PLLs use "the" oscillator directly. 
 
 <img src="image-20201202145206265.png" alt="image-20201202145206265" style="zoom:50%;" />
 
@@ -246,7 +248,7 @@ Implementation of the injection-lock is relatively straightforward, for both rin
 
 ![image-20201202145642352](image-20201202145642352.png)
 
-Perhaps less intuitively, injection locking has a similar noise-shaping characteristic to phase-locking. Low-frequency oscillator noise is attenuated, essentially to zero, as long-term variations are quickly reset by the reference. High-frequency oscillator noise is not filtered. 
+Maybe less intuitively, injection locking has a similar noise-shaping characteristic to phase-locking. Low-frequency oscillator noise is attenuated essentially to zero, as long-term variations are quickly reset by the reference. High-frequency oscillator noise is not filtered. 
 
 ![image-20201202145935801](image-20201202145935801.png)
 
@@ -258,7 +260,7 @@ The design procedure described in [Deng's 2014 ISSCC paper](https://ieeexplore-i
 
 *Deng, ISSCC 2014*
 
-Note two thirds of "DCO", "DAC", and "Logic" don't go through logic synthesis. They are instead written as gate-level netlists. (The title "fully synthesized" appears to mean something closer to "fully place-and-routed".) These are nonetheless probably the most digital-flow-generated PLLs I've seen. Deng's group went out of their way to generate their layout twice: once with separate, hierarchical layouts for the DCOs and DACs, and another in which everything is thrown in together. (The DCO delay cells are just "any other gate" in the layout at left.)
+Note two thirds of "DCO", "DAC", and "Logic" don't go through logic synthesis. They are instead written as gate-level netlists. (The title "fully synthesized" appears to mean something closer to "fully place-and-routed".) These are nonetheless probably the most digital-flow-generated PLLs I've seen. Deng's group went out of their way to generate their 2014 layout twice: once with separate, hierarchical layouts for the DCOs and DACs, and another in which everything is thrown in together. (The DCO delay cells are just "any other gate" in the layout at left.)
 
 ![image-20201202144617122](image-20201202144617122.png)
 
@@ -294,13 +296,15 @@ The MDLL requires a similar frequency-control loop to that of the IL-PLL. Promin
 
 *[Helal, Straayer, Wei, Perrott, JSSC 2008](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=4476488)*
 
+Note this MDLL includes a discrete voltage-mode DAC driving its delay-line, fairly literally patterning our domain-conversion model. 
+
 
 
 ## Further Out There: Time-Based Stuff
 
-At this point we've seen some digital circuits that look pretty analog, and vice versa. Most of our digital PLLs started with the premise that a digital accumulator would be a great basis for a loop filter, and from there attempted to generate a phase-error signal compatible with one. Could we instead build a "digital" loop filter using our time-based error signals from the three-state PFD? The primary hurdle is somehow performing the integration of a pulse-width signal digitally. 
+At this point we've seen some digital circuits that look pretty analog. Most of our digital PLLs started with the premise that a digital accumulator would be a great basis for a loop filter, and from there attempted to generate a phase-error signal compatible with one. Could we instead build a "digital" loop filter using our time-based error signals from the three-state PFD? The primary hurdle is somehow performing the integration of a pulse-width signal digitally. 
 
-We can build such a thing by first realizing that we've had an ideal integrator lying around the PLL all along: *the VCO*. The conversion from frequency to phase is an ideal, mathematical integration. As long as we can measure phase at its output, we can in principal use a VCO as a voltage (or current) integrator. This is the premise behind [Zhu, Hamomolu and team's work presented at ISSCC 2016](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=7418045). 
+We can build such a thing by first realizing that we've had an ideal integrator lying around the PLL all along: the VCO. The conversion from frequency to phase is an ideal, mathematical integration. As long as we can measure phase at its output, we can in principal use a VCO as a voltage (or current) integrator. This is the premise behind [Zhu, Hamomolu and team's work presented at ISSCC 2016](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=7418045). 
 
 ![image-20201202180627365](image-20201202180627365.png)
 
@@ -318,18 +322,6 @@ The time-based integrator is a weird PLL idea that, in all likelihood, doesn't r
 
 
 
-## Clock-Data Compensation 
-
-[Wong JSSC 2006](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=1610619) 
-
-One of the most counter-intuitive conclusions from [Wong JSSC 2006](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=1610619) is that we can game this cancellation effect by *adding loss* to the clock-distrbution supply. Their proposal inserts an RC filter to the clock-supply, modifying its phase shift with respect to supply noise relative to the data-path (and local clock-distribution) elements. 
-
-![image-20201203111603803](image-20201203111603803.png)
-
-*[Wong JSSC 2006](https://ieeexplore-ieee-org.libproxy.berkeley.edu/stamp/stamp.jsp?tp=&arnumber=1610619)* 
-
-
-
 ## Aside: On How These Things Get Simulated 
 
 (Coming Soon)
@@ -338,14 +330,5 @@ One of the most counter-intuitive conclusions from [Wong JSSC 2006](https://ieee
 * CppSim
 * Verilog 
 * SPICE
-
-
-
-## Some Other Recommended Reading 
-
-* [Dennis Fischette's PLL Tutorials](https://www.delroy.com/PLL_dir/pll.htm) 
-
-
-
 
 
