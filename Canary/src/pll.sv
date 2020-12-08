@@ -146,8 +146,7 @@ module pll (
     ) i_dco (
         .ctrl(dctrl),
         .resetn(resetn),
-        .pclk(pclk),
-        .dco_phase(dco_phase)
+        .pclk(pclk)
     );
 
     // Frequency Count
