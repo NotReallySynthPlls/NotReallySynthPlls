@@ -141,8 +141,8 @@ module pll (
 
     longint dctrl [3];
     dco #(
-        .nctrl(3),
-        .kdco({`KDCO_COARSE, `KDCO_FINE, `KDCO_FINE})
+        .NCTRL(3),
+        .KDCO({`KDCO_COARSE, `KDCO_FINE, `KDCO_FINE})
     ) i_dco (
         .ctrl(dctrl),
         .resetn(resetn),

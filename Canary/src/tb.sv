@@ -5,7 +5,7 @@ module tb ();
     logic refclk, pclk, resetn, brake;
     logic edge_meas_enable;
     parameter refclk_period = 8ns;
-    parameter divn = 27;
+    parameter divn = 45;
     
     initial begin  // TB Setup
         $dumpfile("test.vcd");
@@ -38,7 +38,13 @@ module tb ();
         .enable(edge_meas_enable)
     );
     // DUT 
-    pll i_pll(refclk, resetn, brake, divn, pclk);
+    pll i_pll(
+        .refclk(refclk), 
+        .resetn(resetn), 
+        .brake(brake), 
+        .divn(divn), 
+        .pclk(pclk)
+    );
 
 endmodule // tb
 
