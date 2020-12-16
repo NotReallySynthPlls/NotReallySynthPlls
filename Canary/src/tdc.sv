@@ -8,7 +8,7 @@ module pd #(
     input  logic refclk,
     input  logic fbclk,
     input  logic resetn,
-    output int out
+    output int   out
 );
     `timescale 1fs/1fs
 

@@ -1,11 +1,13 @@
-`timescale 1fs/1fs
 
 //! Canary PLL Testbench
 module tb ();
-    logic refclk, pclk, resetn, brake;
-    logic edge_meas_enable;
     parameter refclk_period = 8ns;
-    parameter divn = 45;
+    parameter divn = 30;
+    
+    logic refclk, pclk, resetn, brake;
+    logic edge_meas_enable, locked;
+    lock_state_t lock_state;
+    assign locked = (lock_state == PHASE_LOCKED);
     
     initial begin  // TB Setup
         $dumpfile("test.vcd");
@@ -17,8 +19,18 @@ module tb ();
 
         // De-assert reset
         resetn = #(101.5*refclk_period) 1'b1;
-        // Give some time to lock before measuring edges 
-        edge_meas_enable = #10us 1'b1;
+        
+        // Wait for lock, or time-out
+        fork begin // This trick courtesy the "SystemVerilog Gotchas" book. 
+            fork   // Create a race for the first one of these to complete. 
+                @(locked);
+                #10us $fatal("********* FATAL ERROR: PLL Failed To Lock *********");
+            join_any
+            disable fork;
+        end join 
+
+        // Give a bit more time before measuring edges 
+        edge_meas_enable = #10ns 1'b1;
 
         // Apply supply-droop brakes
         // brake = 1'b1;
@@ -43,6 +55,7 @@ module tb ();
         .resetn(resetn), 
         .brake(brake), 
         .divn(divn), 
+        .lock_state(lock_state), 
         .pclk(pclk)
     );
 

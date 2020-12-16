@@ -1,76 +1,4 @@
 
-typedef enum { BRAKES_OFF, BRAKING, RECOVERING } brake_state_t;
-
-//! 
-//! # Supply Droop and Recovery Manager
-//! 
-module droop_mgr(
-    input  logic refclk,
-    input  logic resetn,
-    input  logic brake,
-    output brake_state_t brake_state,
-    output longint delta_f,
-    output longint delta_n
-);
-    // Brake Handling 
-    parameter longint BRAKE_DELTA_F = 1e9;
-    parameter longint BRAKE_CODE = 1e6; // FIXME: these param dependences: K_PHASE_DIV * BRAKE_DELTA_F / `KDCO_FINE / KI_PHASE;
-    parameter longint BRAKE_DIV = 10; // Divider initial delta-N
-    parameter longint BRAKE_DIV_STEP = 1; // Step size during divider recovery 
-    parameter longint BRAKE_HOLD_CYCLES = 32; // How many ref-cycles to hold at each recovery-step
-    parameter longint BRAKE_CYCLES = 500; // How many cycles to hold before beginning recovery
-    
-    longint brake_countdown, brake_code_delta, brake_div_delta, brake_hold_cycles;
-
-    // Main FSM Action
-    always_ff @(posedge refclk or negedge resetn) begin 
-        if (!resetn) begin 
-            brake_state <= BRAKES_OFF;
-            brake_hold_cycles <= BRAKE_HOLD_CYCLES;
-            brake_countdown <= 0;
-            // Codes are "pre-armed", and enabled combinationally
-            brake_code_delta <= BRAKE_CODE; 
-            brake_div_delta <= BRAKE_DIV;
-        end else begin // Clock Edge
-            if (brake_state == BRAKES_OFF) begin
-                if (brake) begin // Latch into BRAKING state
-                    brake_state <= BRAKING;
-                    brake_countdown <= BRAKE_CYCLES;
-                end
-            end else if (brake_state == BRAKING) begin
-                brake_code_delta <= 0; // This clears the brake-code accumulator input
-                if (brake) begin // Sit here until brake-input de-asserted
-                    brake_countdown <= BRAKE_CYCLES;
-                end else if (brake_countdown > 0) begin 
-                    brake_countdown <= brake_countdown - 1;
-                end else begin // Countdown over, move to recovery 
-                    brake_state <= RECOVERING;
-                    brake_hold_cycles <= BRAKE_HOLD_CYCLES;
-                end
-            end else if (brake_state == RECOVERING) begin 
-                brake_code_delta <= 0;
-                if (brake_hold_cycles > 0) brake_hold_cycles <= brake_hold_cycles - 1;
-                else begin 
-                    brake_hold_cycles <= BRAKE_HOLD_CYCLES;
-                    if (brake_div_delta > (BRAKE_DIV_STEP-1)) brake_div_delta <= brake_div_delta - BRAKE_DIV_STEP;
-                    else begin // We handled it! We're done!
-                        brake_state <= BRAKES_OFF;
-                        // Codes are "pre-armed", and enabled combinationally
-                        brake_code_delta <= BRAKE_CODE; 
-                        brake_div_delta <= BRAKE_DIV;
-                    end 
-                end
-            end
-        end 
-    end
-
-    // Combinational brake-enable
-    logic brakes_on;
-    assign brakes_on = brake | (brake_state != BRAKES_OFF);
-    assign delta_f = brakes_on ? brake_code_delta : 0;
-    assign delta_n = brakes_on ? brake_div_delta : 0;
-
-endmodule
 
 //! Proportional-Integral Loop Filter 
 module pi_filter #(
@@ -102,6 +30,36 @@ module pi_filter #(
 
 endmodule
 
+// typedef enum { RESET, SEARCHING, PASS, FAIL } freq_search_state_t;
+
+// //! 
+// //! Frequency Band-Search FSM 
+// //! 
+// module freq_band_search #(
+//     parameter longint NCYC = 1024
+// )(
+//     input  logic measclk,
+//     input  logic refclk,
+//     input  logic resetn,
+//     input  longint target,
+//     output longint band,
+//     output freq_search_state_t state
+// );
+//     longint cycle_count, ref_count, 
+
+//     // Measured-Clock Rolling Counter
+//     always_ff @(posedge measclk or negedge resetn) begin
+//         if (!resetn) cycle_count <= 0;
+//         else cycle_count <= cycle_count + 1;
+//     end 
+
+//     // Main FSM Action 
+//     always_ff @(posedge measclk or negedge resetn) begin
+//         if (!resetn) cycle_count <= 0;
+//         else cycle_count <= cycle_count + 1;
+//     end 
+
+// endmodule
 
 //! 
 //! # Canary PLL 
@@ -111,6 +69,7 @@ module pll (
     input  logic resetn,
     input  logic brake,
     input  int  divn,
+    output lock_state_t lock_state,
     output logic  pclk
 );
     // Droop-Management Brakes
@@ -130,10 +89,10 @@ module pll (
     logic fmeas_ready;
     parameter FLOCK_CYCLES = 255;
     // Phase Detector & Lock Detector
-    longint pd_out, phase_lock_count;
+    int pd_out, phase_lock_count;
 
     // Lock Detection & State 
-    enum { UNLOCKED, COARSE_FREQ_LOCKED, FINE_FREQ_LOCKED, PHASE_LOCKED } lock_state;
+    lock_state_t lock_state;
 
     // Divider Target
     longint freq_target;
@@ -142,7 +101,8 @@ module pll (
     longint dctrl [3];
     dco #(
         .NCTRL(3),
-        .KDCO({`KDCO_COARSE, `KDCO_FINE, `KDCO_FINE})
+        .KDCO({`KDCO_COARSE, `KDCO_FINE, `KDCO_FINE}),
+        .NOISE_RMS(3e-12)
     ) i_dco (
         .ctrl(dctrl),
         .resetn(resetn),
@@ -202,7 +162,8 @@ module pll (
             // Requires `FLOCK_CYCLES` *consecutive* cycles of low error 
             // FIXME: this locks *once* and never again, for now.
             if (lock_state == UNLOCKED) begin 
-                if (fmeas_ready && freq_diff <= 1 && freq_diff >= -1) begin
+
+                if (fmeas_ready && freq_diff <= 2 && freq_diff >= -2) begin
                     if (flock_count > 0) flock_count <= flock_count - 1;
                     else begin 
                         flock_count <= FLOCK_CYCLES;
@@ -267,8 +228,8 @@ module pll (
     pi_filter #(
         .KP(0),
         .KI(10),
-        .DIV(1),
-        .LIMIT(1024)
+        .DIV(10),
+        .LIMIT(50e3)
     ) i_filt_freq_fine (
         .clk(refclk),
         .resetn(resetn),
@@ -283,8 +244,8 @@ module pll (
     pi_filter #(
         .KP(10),
         .KI(1),
-        .DIV(1),
-        .LIMIT(64)
+        .DIV(10),
+        .LIMIT(100)
     ) i_filt_phase (
         .clk(refclk),
         .resetn(resetn),
