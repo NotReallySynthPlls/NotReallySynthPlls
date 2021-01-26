@@ -1,8 +1,8 @@
 
 //! Canary PLL Testbench
 module tb ();
-    parameter refclk_period = 8ns;
-    parameter divn = 30;
+    parameter refclk_period = 10ns;
+    parameter divn = 32;
     
     logic refclk, pclk, resetn, brake;
     logic edge_meas_enable, locked;

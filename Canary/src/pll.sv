@@ -30,36 +30,69 @@ module pi_filter #(
 
 endmodule
 
-// typedef enum { RESET, SEARCHING, PASS, FAIL } freq_search_state_t;
+typedef enum { INCOMPLETE, PASS, FAIL } freq_search_state_t;
 
-// //! 
-// //! Frequency Band-Search FSM 
-// //! 
-// module freq_band_search #(
-//     parameter longint NCYC = 1024
-// )(
-//     input  logic measclk,
-//     input  logic refclk,
-//     input  logic resetn,
-//     input  longint target,
-//     output longint band,
-//     output freq_search_state_t state
-// );
-//     longint cycle_count, ref_count, 
+//! 
+//! Frequency Band-Search FSM 
+//! 
+module freq_band_search #(
+    parameter longint NCYC = 16,
+    parameter longint MINBAND = 0,
+    parameter longint MAXBAND = 31
+)(
+    input  logic measclk,
+    input  logic refclk,
+    input  logic resetn,
+    input  longint target,
+    output longint band,
+    output freq_search_state_t state
+);
+    longint cycle_count, cycle_count_m1, fmeas, freq_diff, ref_count;
 
-//     // Measured-Clock Rolling Counter
-//     always_ff @(posedge measclk or negedge resetn) begin
-//         if (!resetn) cycle_count <= 0;
-//         else cycle_count <= cycle_count + 1;
-//     end 
+    // Measured-Clock Roll-Over Counter
+    always_ff @(posedge measclk or negedge resetn) begin
+        if (!resetn) begin 
+            cycle_count <= 0;
+        end else begin
+            cycle_count <= cycle_count + 1;
+        end 
+    end
 
-//     // Main FSM Action 
-//     always_ff @(posedge measclk or negedge resetn) begin
-//         if (!resetn) cycle_count <= 0;
-//         else cycle_count <= cycle_count + 1;
-//     end 
-
-// endmodule
+    // Main FSM Action 
+    always_ff @(posedge refclk or negedge resetn) begin
+        if (!resetn) begin // Reset state
+            state <= INCOMPLETE;
+            band <= MINBAND;
+            ref_count <= 0;
+            cycle_count_m1 <= 0;
+        end else if (state == INCOMPLETE) begin // FSM Working
+            if (ref_count < NCYC-1) begin 
+                ref_count <= ref_count + 1;
+            end else begin 
+                fmeas = cycle_count - cycle_count_m1;
+                if (fmeas >= target * NCYC) begin 
+                    // Successful case! We done.  
+                    state <= PASS; 
+                    // Decide whether to back down by one, 
+                    // if the prior guess was (absolute-value) closer. 
+                    if (fmeas - target * NCYC > -freq_diff) begin 
+                        band <= band - 1;
+                    end
+                end else if (band >= MAXBAND) begin 
+                    // No more bands to try. Something wrong. 
+                    state <= FAIL;
+                end else begin 
+                    // Try next band in linear search
+                    freq_diff = fmeas - target * NCYC;
+                    band <= band + 1;
+                end
+                // Set up for our next measurement 
+                ref_count <= 0;
+                cycle_count_m1 <= cycle_count;
+            end
+        end 
+    end 
+endmodule
 
 //! 
 //! # Canary PLL 
@@ -89,10 +122,7 @@ module pll (
     logic fmeas_ready;
     parameter FLOCK_CYCLES = 255;
     // Phase Detector & Lock Detector
-    int pd_out, phase_lock_count;
-
-    // Lock Detection & State 
-    lock_state_t lock_state;
+    int pd_out, phase_lock_count; 
 
     // Divider Target
     longint freq_target;
@@ -194,35 +224,27 @@ module pll (
     end
 
     // Loop Selection 
-    logic coarse_freq_fb_en, fine_freq_fb_en, phase_fb_en;
-    assign coarse_freq_fb_en  = (fmeas_ready && (lock_state == UNLOCKED || brake_state != BRAKES_OFF));
+    logic fine_freq_fb_en, phase_fb_en;
     assign fine_freq_fb_en = (fmeas_ready && (lock_state == COARSE_FREQ_LOCKED) && brake_state == BRAKES_OFF);
     assign phase_fb_en = (fmeas_ready && (lock_state == FINE_FREQ_LOCKED || lock_state == PHASE_LOCKED) && brake_state == BRAKES_OFF);
 
-    // Loop Params
-    parameter longint KP_PHASE = 0;//1e11;
-    parameter longint KI_PHASE = 30e3;//KP_PHASE / 32;
-    parameter longint K_PHASE_DIV = 1e3;
-    parameter longint KP_FREQ = 0;
-    parameter longint KI_FREQ = 10;
-    parameter longint K_FREQ_DIV = 1e3;
-
-    // Frequency Loop Filter
-    longint freq_err;
-    assign freq_err = coarse_freq_fb_en ? freq_diff : 0; 
-    pi_filter #(
-        .KI(KI_FREQ),
-        .KP(KP_FREQ),
-        .DIV(K_FREQ_DIV),
-        .LIMIT(1024)
-    ) i_filt_freq_coarse (
-        .clk(refclk),
+    // Band-Search FSM 
+    // Sets coarse-est of 3 DCO control codes
+    freq_search_state_t freq_search_state;
+    freq_band_search #(
+        .NCYC(32),
+        .MINBAND(-5),
+        .MAXBAND(31)
+    ) i_freq_band_search (
+        .measclk(pclk),
+        .refclk(refclk),
         .resetn(resetn),
-        .inp(freq_err),
-        .out(dctrl[0])
+        .target(freq_target),
+        .state(freq_search_state),
+        .band(dctrl[0])
     );
 
-    // Fine-Frequency Loop Filter
+    // Frequency Loop Filter
     longint freq_err_fine;
     assign freq_err_fine = fine_freq_fb_en ? freq_diff : 0;
     pi_filter #(
