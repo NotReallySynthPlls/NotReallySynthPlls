@@ -23,7 +23,7 @@ This is a survey of digital PLL ideas that I find good, bad, or just interesting
 
 ## Intro: Jitter, and Our Failures Talking About It 
 
-The whole point of a clock-generator is providing a stable time-base for a synchronous system. Beyond than the suite of metrics that characterize *every* class of circuit (power, area, delays, ranges, flexibility, etc.), clock generators really have one unique metric: their timing noise. 
+The whole point of a clock-generator is providing a stable time-base for a synchronous system. Beyond the the suite of metrics that characterize *every* class of circuit (power, area, delays, ranges, flexibility, etc.), clock generators really have one unique metric: their timing noise. 
 
 Problem is, time and noise are two ideas we have a tough time merging. And different classes of digital systems - the circuits *using* the clock - depend on very different quantities which tend to get lumped together under the single term *jitter*. There are at least two such quantities (not metrics - altogether different quantities) listed in Table 1 (and a third which is often listed, and rarely useful). 
 
@@ -91,7 +91,7 @@ We don't really have any of those. The typical SoC clock generator (shown here i
 
 *Analog PLL, Courtesy Niknejad EECS 242B Lectures*
 
-This block diagram depicts the *analog charge-pump PLL*, probably the most-used (and certainly most-taught) architecture around. The idea turning this circuit digital (or at least *more* digital) has been around for a few decades. Unlike in, say, analog signal processing, the digital hasn't secured nearly as decisive a win in this space. Why not? We can start with 
+This block diagram depicts the *analog charge-pump PLL*, probably the most-used (and certainly most-taught) architecture around. The idea turning this circuit digital (or at least *more* digital) has been around for a few decades. Unlike in, say, analog signal processing, the digital hasn't secured nearly as decisive a win in this space. Why not? 
 
 It's worth digging around which parts of the charge-pump PLL are so objectionably analog. For most folks, the ugly part is right about here: 
 
@@ -122,7 +122,7 @@ More generally, the charge-pump PLL does a set of domain transformations at esse
 
 
 
-If we really want to use a traditional digital loop filert, we've got to make a set of domain-transformations that looks more like this: 
+If we really want to use a traditional digital loop filter, we've got to make a set of domain-transformations that looks more like this: 
 
 <img src="adc_dac.svg" alt="adc_dac" style="width:100%;" />
 
