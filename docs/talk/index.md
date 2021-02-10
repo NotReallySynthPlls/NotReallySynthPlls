@@ -23,7 +23,7 @@ This is a survey of digital PLL ideas that I find good, bad, or just interesting
 
 ## Intro: Jitter, and Our Failures Talking About It 
 
-The whole point of a clock-generator is providing a stable time-base for a synchronous system. Beyond the the suite of metrics that characterize *every* class of circuit (power, area, delays, ranges, flexibility, etc.), clock generators really have one unique metric: their timing noise. 
+The whole point of a clock-generator is providing a stable time-base for a synchronous system. Beyond the suite of metrics that characterize *every* class of circuit (power, area, delays, ranges, flexibility, etc.), clock generators really have one unique metric: their timing noise. 
 
 Problem is, time and noise are two ideas we have a tough time merging. And different classes of digital systems - the circuits *using* the clock - depend on very different quantities which tend to get lumped together under the single term *jitter*. There are at least two such quantities (not metrics - altogether different quantities) listed in Table 1 (and a third which is often listed, and rarely useful). 
 
